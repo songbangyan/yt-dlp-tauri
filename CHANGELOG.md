@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.1.1 - 2026-05-26
+
+- Hid background Windows command windows during tool checks, installs, metadata parsing, downloads, extraction, and cancellation.
+- Improved tool install, archive extraction, and process failure messages with concrete paths, exit codes, and stderr details.
+- Aligned the Settings footer version row with update and project controls.
+- Fixed thumbnail previews by normalizing HTTP thumbnail URLs to HTTPS and retrying fallback thumbnail candidates.
+
 ## 0.1.0 - 2026-05-26
 
 - Renamed the project to `yt-dlp-tauri`.
