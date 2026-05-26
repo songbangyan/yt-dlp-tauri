@@ -3,7 +3,9 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    env, fs,
+    env,
+    ffi::OsStr,
+    fs,
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -18,6 +20,8 @@ const DEFAULT_TOOL_TARGET: &str = "win-x64";
 const TOOLS_MANIFEST_FILE: &str = "tools-manifest.json";
 const PROGRESS_PREFIX: &str = "yt-dlp-tauri-progress:";
 const OUTPUT_PATH_PREFIX: &str = "yt-dlp-tauri-output:";
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 #[derive(Debug, Serialize)]
 struct AppState {
@@ -305,7 +309,8 @@ async fn parse_metadata(app: AppHandle, url: String) -> Result<VideoMetadata, St
         require_tools(&tools)?;
         append_log("metadata", &format!("Parsing {url}"));
 
-        let output = Command::new(&tools.yt_dlp)
+        let mut command = background_command(&tools.yt_dlp);
+        let output = command
             .args([
                 "--ignore-config",
                 "--no-playlist",
@@ -317,13 +322,20 @@ async fn parse_metadata(app: AppHandle, url: String) -> Result<VideoMetadata, St
             .arg(format!("deno:{}", tools.deno.display()))
             .arg(&url)
             .output()
-            .map_err(to_string)?;
+            .map_err(|error| {
+                format!(
+                    "Failed to start yt-dlp at {}: {error}",
+                    tools.yt_dlp.display()
+                )
+            })?;
 
         if !output.status.success() {
             append_log("metadata", "Failed to parse metadata.");
-            return Err(user_process_error(
+            return Err(process_failure_message(
                 "Failed to parse video metadata.",
-                &String::from_utf8_lossy(&output.stderr),
+                output.status.code(),
+                &output.stderr,
+                &output.stdout,
             ));
         }
 
@@ -349,7 +361,8 @@ async fn download_video(
         let output_dir = download_directory()?;
         append_log("download", &format!("Starting {} {}", request.label, request.url));
 
-        let mut child = Command::new(&tools.yt_dlp)
+        let mut command = background_command(&tools.yt_dlp);
+        let mut child = command
             .args([
                 "--ignore-config",
                 "--no-playlist",
@@ -381,7 +394,7 @@ async fn download_video(
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(to_string)?;
+            .map_err(|error| format!("Failed to start yt-dlp at {}: {error}", tools.yt_dlp.display()))?;
         let pid = child.id();
         set_active_process(&process_state, pid)?;
 
@@ -445,7 +458,12 @@ async fn download_video(
                 return Err("Download cancelled.".to_string());
             }
             append_log("download", &format!("Failed. {details}"));
-            return Err(user_process_error("Download failed.", &details));
+            return Err(process_failure_message(
+                "Download failed.",
+                status.code(),
+                details.as_bytes(),
+                &[],
+            ));
         }
 
         clear_active_process(&process_state, pid);
@@ -636,7 +654,8 @@ fn install_manifest_target(
                     tool,
                     step / total_steps * 100.0,
                     100.0 / total_steps,
-                )?;
+                )
+                .map_err(|error| format!("Failed to install {}. {error}", tool.name))?;
             }
             ManifestToolKind::Zip => {
                 zip_groups
@@ -649,13 +668,15 @@ fn install_manifest_target(
 
     for tools in zip_groups.values() {
         let step = installed_tool_count(root, &target.tools) as f64;
+        let group_label = zip_group_label(tools);
         install_zip_tools(
             app,
             root,
             tools,
             step / total_steps * 100.0,
             tools.len() as f64 / total_steps * 100.0,
-        )?;
+        )
+        .map_err(|error| format!("Failed to install {group_label}. {error}"))?;
     }
 
     for tool in &target.tools {
@@ -780,12 +801,31 @@ fn download_to_destination(
         span_percent,
     )?;
     if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent).map_err(to_string)?;
+        fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "Failed to prepare directory for {} at {}: {error}",
+                tool.name,
+                parent.display()
+            )
+        })?;
     }
     if destination.exists() {
-        fs::remove_file(destination).map_err(to_string)?;
+        fs::remove_file(destination).map_err(|error| {
+            format!(
+                "Failed to replace existing {} at {}: {error}",
+                tool.name,
+                destination.display()
+            )
+        })?;
     }
-    fs::rename(temp, destination).map_err(to_string)?;
+    fs::rename(&temp, destination).map_err(|error| {
+        format!(
+            "Failed to move downloaded {} from {} to {}: {error}",
+            tool.name,
+            temp.display(),
+            destination.display()
+        )
+    })?;
     Ok(())
 }
 
@@ -799,7 +839,12 @@ fn download_source_to_file(
     span_percent: f64,
 ) -> Result<(), String> {
     if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent).map_err(to_string)?;
+        fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "Failed to prepare download directory {}: {error}",
+                parent.display()
+            )
+        })?;
     }
     emit_tool_install_progress(
         app,
@@ -810,17 +855,30 @@ fn download_source_to_file(
         },
     );
 
-    let curl_status = Command::new("curl")
-        .args(["-L", "--fail", "--retry", "2", "--output"])
+    let output = background_command("curl")
+        .args([
+            "-L",
+            "--fail",
+            "--show-error",
+            "--silent",
+            "--retry",
+            "2",
+            "--output",
+        ])
         .arg(destination)
         .arg(source_url)
-        .status()
-        .map_err(to_string)?;
+        .output()
+        .map_err(|error| format!("Failed to start curl for {tool_name}: {error}"))?;
 
-    if !curl_status.success() {
-        return Err(format!(
-            "Failed to download {source_url}. Exit code {:?}",
-            curl_status.code()
+    if !output.status.success() {
+        return Err(process_failure_message(
+            &format!(
+                "Failed to download {tool_name} from {source_url} to {}.",
+                destination.display()
+            ),
+            output.status.code(),
+            &output.stderr,
+            &output.stdout,
         ));
     }
 
@@ -836,32 +894,44 @@ fn download_source_to_file(
 }
 
 fn extract_zip_archive(zip_path: &Path, destination: &Path) -> Result<(), String> {
-    let status = if cfg!(target_os = "windows") {
-        Command::new("powershell")
+    let mut command = if cfg!(target_os = "windows") {
+        let mut command = background_command("powershell");
+        command
             .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"])
             .arg(format!(
                 "Expand-Archive -Force -LiteralPath '{}' -DestinationPath '{}'",
                 powershell_escape(zip_path),
                 powershell_escape(destination)
-            ))
-            .status()
+            ));
+        command
     } else {
-        Command::new("unzip")
+        let mut command = background_command("unzip");
+        command
             .args(["-q", "-o"])
             .arg(zip_path)
             .arg("-d")
-            .arg(destination)
-            .status()
-    }
-    .map_err(to_string)?;
+            .arg(destination);
+        command
+    };
+    let output = command.output().map_err(|error| {
+        format!(
+            "Failed to start archive extractor for {}: {error}",
+            zip_path.display()
+        )
+    })?;
 
-    if status.success() {
+    if output.status.success() {
         Ok(())
     } else {
-        Err(format!(
-            "Failed to extract {}. Exit code {:?}",
-            zip_path.display(),
-            status.code()
+        Err(process_failure_message(
+            &format!(
+                "Failed to extract {} to {}.",
+                zip_path.display(),
+                destination.display()
+            ),
+            output.status.code(),
+            &output.stderr,
+            &output.stdout,
         ))
     }
 }
@@ -876,13 +946,32 @@ fn extract_tool_from_directory(
         .as_deref()
         .ok_or_else(|| format!("{} is missing archivePathSuffix.", tool.name))?
         .replace('\\', "/");
-    let source = find_file_by_normalized_suffix(extract_root, &suffix)?
-        .ok_or_else(|| format!("Unable to find {} in extracted archive.", suffix))?;
+    let source = find_file_by_normalized_suffix(extract_root, &suffix)?.ok_or_else(|| {
+        format!(
+            "Unable to find {} at {} in extracted archive {}.",
+            tool.name,
+            suffix,
+            extract_root.display()
+        )
+    })?;
     let destination = tools_root.join(relative_manifest_tool_path(tool)?);
     if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent).map_err(to_string)?;
+        fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "Failed to prepare directory for {} at {}: {error}",
+                tool.name,
+                parent.display()
+            )
+        })?;
     }
-    fs::copy(source, destination).map_err(to_string)?;
+    fs::copy(&source, &destination).map_err(|error| {
+        format!(
+            "Failed to copy {} from {} to {}: {error}",
+            tool.name,
+            source.display(),
+            destination.display()
+        )
+    })?;
     Ok(())
 }
 
@@ -1008,7 +1097,8 @@ fn probe_tool(
         };
     }
 
-    match Command::new(full_path).args(version_args).output() {
+    let mut command = background_command(full_path);
+    match command.args(version_args).output() {
         Ok(output) if output.status.success() => ToolStatus {
             name: name.to_string(),
             relative_path: relative_path.to_string(),
@@ -1023,8 +1113,15 @@ fn probe_tool(
             full_path: full_path.display().to_string(),
             availability: "cannot_execute".to_string(),
             version: None,
-            error: first_line(&output.stderr)
-                .or_else(|| Some(format!("Exit code {:?}", output.status.code()))),
+            error: Some(process_failure_message(
+                &format!(
+                    "{name} at {} failed to report a version.",
+                    full_path.display()
+                ),
+                output.status.code(),
+                &output.stderr,
+                &output.stdout,
+            )),
         },
         Err(error) => ToolStatus {
             name: name.to_string(),
@@ -1032,7 +1129,10 @@ fn probe_tool(
             full_path: full_path.display().to_string(),
             availability: "cannot_execute".to_string(),
             version: None,
-            error: Some(error.to_string()),
+            error: Some(format!(
+                "Failed to run {name} at {}: {error}",
+                full_path.display()
+            )),
         },
     }
 }
@@ -1213,22 +1313,28 @@ fn was_cancel_requested(state: &DownloadProcessState) -> bool {
 
 fn kill_process_tree(pid: u32) -> Result<(), String> {
     let pid_text = pid.to_string();
-    let status = if cfg!(target_os = "windows") {
-        Command::new("taskkill")
-            .args(["/PID", &pid_text, "/T", "/F"])
-            .status()
+    let mut command = if cfg!(target_os = "windows") {
+        let mut command = background_command("taskkill");
+        command.args(["/PID", &pid_text, "/T", "/F"]);
+        command
     } else {
-        Command::new("kill").args(["-TERM", &pid_text]).status()
-    }
-    .map_err(to_string)?;
+        let mut command = background_command("kill");
+        command.args(["-TERM", &pid_text]);
+        command
+    };
+    let output = command
+        .output()
+        .map_err(|error| format!("Failed to start cancel command for process {pid}: {error}"))?;
 
-    if status.success() {
+    if output.status.success() {
         append_log("download", &format!("Cancel requested for process {pid}."));
         Ok(())
     } else {
-        Err(format!(
-            "Failed to cancel process {pid}. Exit code {:?}",
-            status.code()
+        Err(process_failure_message(
+            &format!("Failed to cancel process {pid}."),
+            output.status.code(),
+            &output.stderr,
+            &output.stdout,
         ))
     }
 }
@@ -1319,6 +1425,20 @@ fn home_directory() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+fn background_command(program: impl AsRef<OsStr>) -> Command {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut command = Command::new(program);
+        command.creation_flags(CREATE_NO_WINDOW);
+        command
+    }
+    #[cfg(not(windows))]
+    {
+        Command::new(program)
+    }
+}
+
 fn validate_http_url(url: &str) -> Result<(), String> {
     let trimmed = url.trim();
     if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
@@ -1333,6 +1453,24 @@ fn first_line(bytes: &[u8]) -> Option<String> {
         .lines()
         .find(|line| !line.trim().is_empty())
         .map(|line| line.trim().to_string())
+}
+
+fn process_failure_message(
+    action: &str,
+    code: Option<i32>,
+    stderr: &[u8],
+    stdout: &[u8],
+) -> String {
+    let status = match code {
+        Some(code) => format!("Exit code {code}."),
+        None => "Process terminated without an exit code.".to_string(),
+    };
+    let details = first_line(stderr).or_else(|| first_line(stdout));
+
+    match details {
+        Some(details) => format!("{action} {status} {details}"),
+        None => format!("{action} {status}"),
+    }
 }
 
 fn open_path(path: &Path) -> Result<(), String> {
@@ -1352,15 +1490,6 @@ fn open_path(path: &Path) -> Result<(), String> {
 
     command.spawn().map_err(to_string)?;
     Ok(())
-}
-
-fn user_process_error(summary: &str, details: &str) -> String {
-    let trimmed = details.trim();
-    if trimmed.is_empty() {
-        summary.to_string()
-    } else {
-        format!("{summary} {trimmed}")
-    }
 }
 
 fn to_string(error: impl std::fmt::Display) -> String {
@@ -1443,6 +1572,36 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn process_failure_message_prefers_stderr() {
+        let message = process_failure_message(
+            "Failed to download yt-dlp.",
+            Some(22),
+            b"curl: (22) The requested URL returned error: 404\n",
+            b"ignored stdout\n",
+        );
+
+        assert_eq!(
+            message,
+            "Failed to download yt-dlp. Exit code 22. curl: (22) The requested URL returned error: 404"
+        );
+    }
+
+    #[test]
+    fn process_failure_message_falls_back_to_stdout() {
+        let message = process_failure_message(
+            "Failed to extract archive.",
+            None,
+            b"",
+            b"Archive is invalid\n",
+        );
+
+        assert_eq!(
+            message,
+            "Failed to extract archive. Process terminated without an exit code. Archive is invalid"
+        );
     }
 }
 

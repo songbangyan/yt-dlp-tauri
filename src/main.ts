@@ -500,8 +500,9 @@ async function refreshTools() {
     logEvent(state.toolsReady ? t("event.toolsAvailable") : t("event.toolsMissing"));
   } catch (error) {
     state.toolsReady = false;
-    elements.toolInstallStatus.textContent = t("settings.toolCheckFailed");
-    showNotice(String(error), "error");
+    const message = String(error);
+    elements.toolInstallStatus.textContent = message || t("settings.toolCheckFailed");
+    showNotice(message || t("settings.toolCheckFailed"), "error");
   } finally {
     setBusy(false);
   }
@@ -523,9 +524,10 @@ async function installTools() {
     showNotice(state.toolsReady ? t("notice.toolsInstalled") : t("notice.toolInstallNeedsAttention"), state.toolsReady ? "success" : "warning");
     logEvent(state.toolsReady ? t("event.toolsInstalled") : t("event.toolsPartial"));
   } catch (error) {
-    elements.toolInstallStatus.textContent = t("settings.toolInstallFailed");
-    showNotice(String(error), "error");
-    logEvent(t("event.toolInstallFailed"));
+    const message = String(error);
+    elements.toolInstallStatus.textContent = message || t("settings.toolInstallFailed");
+    showNotice(message || t("settings.toolInstallFailed"), "error");
+    logEvent(`${t("event.toolInstallFailed")} ${message}`.trim());
   } finally {
     setBusy(false);
   }
