@@ -9,121 +9,119 @@
   </head>
   <body>
     <main class="app-shell">
-      <section class="hero" aria-labelledby="app-title">
-        <div>
-          <p class="eyebrow">Tauri rebuild</p>
-          <h1 id="app-title">yt-dlp-windows</h1>
-          <p class="subtitle">Paste a video link, inspect the metadata, choose a quality and save an MP4 without touching the command line.</p>
+      <header class="topbar">
+        <div class="brand-lockup">
+          <p class="eyebrow" data-i18n="app.eyebrow">Desktop downloader</p>
+          <h1>yt-dlp-windows</h1>
         </div>
-        <div id="notice" class="notice is-warning">Checking bundled tools...</div>
-      </section>
+        <div class="top-actions">
+          <div class="language-toggle" role="group" data-i18n-aria-label="language.label" aria-label="Language">
+            <button id="language-en" class="segment" type="button" data-language="en">EN</button>
+            <button id="language-zh" class="segment" type="button" data-language="zh">中</button>
+          </div>
+          <button id="settings-toggle" class="button secondary" type="button" data-i18n="action.settings">Settings</button>
+        </div>
+      </header>
 
-      <section class="workspace" aria-label="video download workspace">
-        <div class="primary-flow">
-          <section class="panel intake-panel" aria-labelledby="url-heading">
-            <div class="section-heading">
-              <span class="step">01</span>
-              <div>
-                <h2 id="url-heading">Video URL</h2>
-                <p>Parse first, then download the exact quality you want.</p>
-              </div>
-            </div>
-            <div class="url-row">
-              <input id="url" type="url" spellcheck="false" placeholder="https://www.youtube.com/watch?v=..." />
-              <button id="parse" class="button primary" type="button">Parse</button>
-            </div>
-          </section>
-
-          <section class="panel preview-panel" aria-labelledby="preview-heading">
-            <div class="media-frame">
-              <img id="thumbnail" alt="video thumbnail" hidden />
-              <div id="thumbnail-empty" class="empty-thumbnail">
-                <span class="empty-icon">↓</span>
-                <span>Preview appears here</span>
-              </div>
-            </div>
-            <div class="preview-copy">
-              <div class="section-heading compact">
-                <span class="step">02</span>
-                <div>
-                  <h2 id="preview-heading">Preview</h2>
-                  <p>Title, source details and description returned by yt-dlp.</p>
-                </div>
-              </div>
-              <h3 id="video-title">No video parsed</h3>
-              <p id="video-details">Paste a video URL to inspect the title, cover, duration and available qualities.</p>
-              <p id="video-description"></p>
-            </div>
-          </section>
-
-          <section class="panel download-panel" aria-labelledby="download-heading">
-            <div class="section-heading">
-              <span class="step">03</span>
-              <div>
-                <h2 id="download-heading">Download</h2>
-                <p>Output goes to the configured folder as an MP4-friendly file.</p>
-              </div>
-            </div>
-            <div class="download-controls">
-              <label>
-                <span>Quality</span>
-                <select id="quality" disabled></select>
-              </label>
-              <button id="download" class="button primary" type="button" disabled>Download</button>
-              <button id="cancel" class="button danger" type="button" disabled>Cancel</button>
-              <button id="open-folder" class="button" type="button">Open folder</button>
-            </div>
-            <progress id="progress" max="100" value="0"></progress>
-            <p id="progress-text" class="progress-text">Idle</p>
-          </section>
+      <section class="download-surface" aria-labelledby="app-title">
+        <div class="surface-header">
+          <div>
+            <h2 id="app-title" data-i18n="app.heading">Paste, choose, download.</h2>
+            <p data-i18n="app.subtitle">Tools, folder, and logs live in settings.</p>
+          </div>
+          <div id="notice" class="notice is-warning">Checking tools...</div>
         </div>
 
-        <aside class="side-rail" aria-label="settings and diagnostics">
-          <section class="panel tools-panel" aria-labelledby="tools-heading">
-            <div class="section-heading compact">
-              <span class="step">A</span>
-              <div>
-                <h2 id="tools-heading">Toolchain</h2>
-                <p>Installed per target and verified with SHA-256.</p>
-              </div>
-            </div>
-            <p id="tool-root" class="path-text">Resolving tools path...</p>
-            <ul id="tool-list" class="tool-list"></ul>
-            <p id="tool-install-status" class="tool-install-status">Install missing tools automatically.</p>
-            <div class="tool-actions">
-              <button id="refresh-tools" class="button" type="button">Refresh</button>
-              <button id="install-tools" class="button primary" type="button">Install tools</button>
-            </div>
-          </section>
+        <section class="url-panel" aria-labelledby="url-heading">
+          <label for="url" id="url-heading" data-i18n="url.label">Video URL</label>
+          <div class="url-row">
+            <input
+              id="url"
+              type="url"
+              spellcheck="false"
+              data-i18n-placeholder="url.placeholder"
+              placeholder="https://www.youtube.com/watch?v=..."
+            />
+            <button id="parse" class="button primary" type="button" data-i18n="action.parse">Parse</button>
+          </div>
+        </section>
 
-          <section class="panel folder-panel" aria-labelledby="folder-heading">
-            <div class="section-heading compact">
-              <span class="step">B</span>
-              <div>
-                <h2 id="folder-heading">Output folder</h2>
-                <p id="folder-text">Resolving download folder...</p>
-              </div>
+        <section class="preview-panel" aria-labelledby="preview-heading">
+          <div class="media-frame">
+            <img id="thumbnail" alt="video thumbnail" data-i18n-alt="preview.thumbnailAlt" hidden />
+            <div id="thumbnail-empty" class="empty-thumbnail">
+              <span class="empty-mark" aria-hidden="true"></span>
+              <span data-i18n="preview.emptyImage">Preview</span>
             </div>
-            <input id="folder-input" type="text" spellcheck="false" />
-            <div class="split-actions">
-              <button id="browse-folder" class="button" type="button">Browse</button>
-              <button id="save-folder" class="button" type="button">Save</button>
-              <button id="reset-folder" class="button" type="button">Reset</button>
-            </div>
-          </section>
+          </div>
+          <div class="preview-copy">
+            <p id="preview-heading" class="section-kicker" data-i18n="preview.label">Preview</p>
+            <h3 id="video-title">No video parsed</h3>
+            <p id="video-details">Paste a video URL to inspect title, cover, duration, and qualities.</p>
+            <p id="video-description"></p>
+          </div>
+        </section>
 
-          <section class="panel events-panel" aria-labelledby="events-heading">
-            <div class="section-heading compact">
-              <span class="step">C</span>
-              <div>
-                <h2 id="events-heading">Activity</h2>
-                <p>Recent app events stay local.</p>
-              </div>
-            </div>
-            <ul id="events" class="events"></ul>
-          </section>
-        </aside>
+        <section class="download-panel" aria-labelledby="download-heading">
+          <div class="quality-field">
+            <label for="quality" id="download-heading" data-i18n="download.quality">Quality</label>
+            <select id="quality" disabled></select>
+          </div>
+          <div class="download-actions">
+            <button id="download" class="button primary" type="button" disabled data-i18n="action.download">Download</button>
+            <button id="cancel" class="button danger" type="button" disabled data-i18n="action.cancel">Cancel</button>
+            <button id="open-folder" class="button secondary" type="button" data-i18n="action.openFolder">Open folder</button>
+          </div>
+          <progress id="progress" max="100" value="0"></progress>
+          <p id="progress-text" class="progress-text">Idle</p>
+        </section>
       </section>
     </main>
+
+    <div id="settings-backdrop" class="settings-backdrop" hidden></div>
+    <aside id="settings-drawer" class="settings-drawer" aria-labelledby="settings-title" aria-hidden="true" hidden>
+      <div class="drawer-header">
+        <div>
+          <p class="eyebrow" data-i18n="settings.kicker">Preferences</p>
+          <h2 id="settings-title" data-i18n="settings.title">Settings</h2>
+        </div>
+        <button id="settings-close" class="icon-button" type="button" data-i18n-aria-label="action.close" aria-label="Close">×</button>
+      </div>
+
+      <section class="settings-section" aria-labelledby="folder-heading">
+        <div class="settings-section-header">
+          <h3 id="folder-heading" data-i18n="settings.outputFolder">Output folder</h3>
+          <p id="folder-text">Resolving download folder...</p>
+        </div>
+        <input id="folder-input" type="text" spellcheck="false" />
+        <div class="split-actions">
+          <button id="browse-folder" class="button secondary" type="button" data-i18n="action.browse">Browse</button>
+          <button id="save-folder" class="button secondary" type="button" data-i18n="action.save">Save</button>
+          <button id="reset-folder" class="button secondary" type="button" data-i18n="action.reset">Reset</button>
+        </div>
+      </section>
+
+      <section class="settings-section" aria-labelledby="tools-heading">
+        <div class="settings-section-header">
+          <h3 id="tools-heading" data-i18n="settings.toolchain">Toolchain</h3>
+          <p data-i18n="settings.toolchainHint">Per-target tools are verified with SHA-256.</p>
+        </div>
+        <p id="tool-root" class="path-text">Resolving tools path...</p>
+        <ul id="tool-list" class="tool-list"></ul>
+        <p id="tool-install-status" class="tool-install-status">Install missing tools automatically.</p>
+        <div class="tool-actions">
+          <button id="refresh-tools" class="button secondary" type="button" data-i18n="action.refresh">Refresh</button>
+          <button id="install-tools" class="button primary" type="button" data-i18n="action.installTools">Install tools</button>
+        </div>
+      </section>
+
+      <section class="settings-section" aria-labelledby="events-heading">
+        <div class="settings-section-header">
+          <h3 id="events-heading" data-i18n="settings.activity">Activity</h3>
+          <p data-i18n="settings.activityHint">Recent local events.</p>
+        </div>
+        <ul id="events" class="events"></ul>
+      </section>
+    </aside>
   </body>
 </html>

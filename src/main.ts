@@ -48,6 +48,181 @@ type ToolInstallProgress = {
   tool?: string;
 };
 
+const translations = {
+  en: {
+    "app.title": "yt-dlp-windows",
+    "app.eyebrow": "Desktop downloader",
+    "app.heading": "Paste, choose, download.",
+    "app.subtitle": "Tools, folder, and logs live in settings.",
+    "language.label": "Language",
+    "action.settings": "Settings",
+    "action.close": "Close",
+    "action.parse": "Parse",
+    "action.download": "Download",
+    "action.cancel": "Cancel",
+    "action.openFolder": "Open folder",
+    "action.browse": "Browse",
+    "action.save": "Save",
+    "action.reset": "Reset",
+    "action.refresh": "Refresh",
+    "action.installTools": "Install tools",
+    "action.repairTools": "Repair tools",
+    "url.label": "Video URL",
+    "url.placeholder": "https://www.youtube.com/watch?v=...",
+    "preview.thumbnailAlt": "video thumbnail",
+    "preview.emptyImage": "Preview",
+    "preview.label": "Preview",
+    "preview.noVideo": "No video parsed",
+    "preview.emptyStart": "Paste a video URL to inspect title, cover, duration, and qualities.",
+    "preview.emptyChanged": "Paste a URL and parse it before downloading.",
+    "preview.readingMetadata": "Reading metadata from yt-dlp...",
+    "preview.parseFailed": "Metadata parsing failed. Check the URL and tools.",
+    "preview.noDescription": "No description returned by yt-dlp.",
+    "download.quality": "Quality",
+    "progress.idle": "Idle",
+    "progress.parsing": "Parsing video metadata...",
+    "progress.startingDownload": "Starting {quality} download...",
+    "progress.savedTo": "Saved to {path}",
+    "progress.completedOpenFolder": "Download completed. Open the folder to view the file.",
+    "progress.downloadCancelled": "Download cancelled.",
+    "progress.downloadFailed": "Download failed.",
+    "progress.cancelling": "Cancelling download...",
+    "progress.eta": "ETA",
+    "notice.checkingTools": "Checking tools...",
+    "notice.toolchainReady": "Toolchain ready.",
+    "notice.toolsMissing": "Some tools are missing.",
+    "notice.toolCheckFailed": "Tool check failed.",
+    "notice.toolsInstalled": "Toolchain installed.",
+    "notice.toolInstallNeedsAttention": "Tool install needs attention.",
+    "notice.toolInstallFailed": "Tool install failed.",
+    "notice.metadataParsed": "Metadata parsed.",
+    "notice.downloadCompleted": "Download completed.",
+    "notice.downloadCancelled": "Download cancelled.",
+    "notice.folderUpdated": "Download folder updated.",
+    "notice.folderReset": "Download folder reset.",
+    "settings.kicker": "Preferences",
+    "settings.title": "Settings",
+    "settings.outputFolder": "Output folder",
+    "settings.resolvingFolder": "Resolving download folder...",
+    "settings.toolchain": "Toolchain",
+    "settings.toolchainHint": "Per-target tools are verified with SHA-256.",
+    "settings.resolvingTools": "Resolving tools path...",
+    "settings.installMissing": "Install missing tools automatically.",
+    "settings.toolsPathPending": "Tools path not resolved yet",
+    "settings.toolsChecking": "Checking tools...",
+    "settings.toolsAvailable": "All required tools are available.",
+    "settings.toolsMissing": "Missing tools can be installed automatically.",
+    "settings.toolCheckFailed": "Tool check failed.",
+    "settings.toolsInstalled": "Toolchain installed.",
+    "settings.toolsInstallPartial": "Install finished, but some tools still need attention.",
+    "settings.toolInstallFailed": "Tool install failed.",
+    "settings.activity": "Activity",
+    "settings.activityHint": "Recent local events.",
+    "settings.chooseFolder": "Choose download folder",
+    "event.booted": "App booted.",
+    "event.toolsAvailable": "yt-dlp, ffmpeg, ffprobe and deno are available.",
+    "event.toolsMissing": "Tool check found missing tools.",
+    "event.toolsInstalled": "Toolchain installed.",
+    "event.toolsPartial": "Tool install completed with missing tools.",
+    "event.toolInstallFailed": "Tool install failed.",
+    "event.parsed": "Parsed {title}",
+    "event.metadataFailed": "Metadata parsing failed.",
+    "event.saved": "Saved {path}",
+    "event.downloadCompleted": "Download completed.",
+    "event.downloadCancelled": "Download cancelled.",
+    "event.downloadFailed": "Download failed.",
+    "event.cancelRequested": "Cancel requested.",
+  },
+  zh: {
+    "app.title": "yt-dlp-windows",
+    "app.eyebrow": "桌面下载器",
+    "app.heading": "粘贴，选择，下载。",
+    "app.subtitle": "工具链、目录和日志放在设置里。",
+    "language.label": "语言",
+    "action.settings": "设置",
+    "action.close": "关闭",
+    "action.parse": "解析",
+    "action.download": "下载",
+    "action.cancel": "取消",
+    "action.openFolder": "打开目录",
+    "action.browse": "浏览",
+    "action.save": "保存",
+    "action.reset": "重置",
+    "action.refresh": "刷新",
+    "action.installTools": "安装工具",
+    "action.repairTools": "修复工具",
+    "url.label": "视频链接",
+    "url.placeholder": "https://www.youtube.com/watch?v=...",
+    "preview.thumbnailAlt": "视频缩略图",
+    "preview.emptyImage": "预览",
+    "preview.label": "预览",
+    "preview.noVideo": "尚未解析视频",
+    "preview.emptyStart": "粘贴视频链接后解析，可查看标题、封面、时长和清晰度。",
+    "preview.emptyChanged": "请先解析当前链接，再开始下载。",
+    "preview.readingMetadata": "正在通过 yt-dlp 读取信息...",
+    "preview.parseFailed": "解析失败。请检查链接和工具链。",
+    "preview.noDescription": "yt-dlp 未返回描述。",
+    "download.quality": "清晰度",
+    "progress.idle": "空闲",
+    "progress.parsing": "正在解析视频信息...",
+    "progress.startingDownload": "开始下载 {quality}...",
+    "progress.savedTo": "已保存到 {path}",
+    "progress.completedOpenFolder": "下载完成。打开目录即可查看文件。",
+    "progress.downloadCancelled": "下载已取消。",
+    "progress.downloadFailed": "下载失败。",
+    "progress.cancelling": "正在取消下载...",
+    "progress.eta": "剩余",
+    "notice.checkingTools": "正在检查工具链...",
+    "notice.toolchainReady": "工具链已就绪。",
+    "notice.toolsMissing": "缺少部分工具。",
+    "notice.toolCheckFailed": "工具检查失败。",
+    "notice.toolsInstalled": "工具链已安装。",
+    "notice.toolInstallNeedsAttention": "工具安装需要处理。",
+    "notice.toolInstallFailed": "工具安装失败。",
+    "notice.metadataParsed": "视频信息已解析。",
+    "notice.downloadCompleted": "下载完成。",
+    "notice.downloadCancelled": "下载已取消。",
+    "notice.folderUpdated": "下载目录已更新。",
+    "notice.folderReset": "下载目录已重置。",
+    "settings.kicker": "偏好",
+    "settings.title": "设置",
+    "settings.outputFolder": "输出目录",
+    "settings.resolvingFolder": "正在解析下载目录...",
+    "settings.toolchain": "工具链",
+    "settings.toolchainHint": "按目标平台安装，并用 SHA-256 校验。",
+    "settings.resolvingTools": "正在解析工具路径...",
+    "settings.installMissing": "可自动安装缺失工具。",
+    "settings.toolsPathPending": "工具路径尚未解析",
+    "settings.toolsChecking": "正在检查工具链...",
+    "settings.toolsAvailable": "所需工具均可用。",
+    "settings.toolsMissing": "可自动安装缺失工具。",
+    "settings.toolCheckFailed": "工具检查失败。",
+    "settings.toolsInstalled": "工具链已安装。",
+    "settings.toolsInstallPartial": "安装结束，但仍有工具需要处理。",
+    "settings.toolInstallFailed": "工具安装失败。",
+    "settings.activity": "活动",
+    "settings.activityHint": "最近的本地事件。",
+    "settings.chooseFolder": "选择下载目录",
+    "event.booted": "应用已启动。",
+    "event.toolsAvailable": "yt-dlp、ffmpeg、ffprobe 和 deno 均可用。",
+    "event.toolsMissing": "工具检查发现缺失项。",
+    "event.toolsInstalled": "工具链已安装。",
+    "event.toolsPartial": "工具安装完成，但仍有缺失项。",
+    "event.toolInstallFailed": "工具安装失败。",
+    "event.parsed": "已解析 {title}",
+    "event.metadataFailed": "视频信息解析失败。",
+    "event.saved": "已保存 {path}",
+    "event.downloadCompleted": "下载完成。",
+    "event.downloadCancelled": "下载已取消。",
+    "event.downloadFailed": "下载失败。",
+    "event.cancelRequested": "已请求取消。",
+  },
+} as const;
+
+type Language = keyof typeof translations;
+type TranslationKey = keyof (typeof translations)["en"];
+type NoticeTone = "success" | "warning" | "error";
+
 const state = {
   metadata: null as VideoMetadata | null,
   selectedFormat: null as VideoFormatOption | null,
@@ -56,6 +231,7 @@ const state = {
   cancelRequested: false,
   lastUrl: "",
   toolsReady: false,
+  language: resolveInitialLanguage(),
 };
 
 const elements = {
@@ -64,6 +240,12 @@ const elements = {
   download: must<HTMLButtonElement>("#download"),
   cancel: must<HTMLButtonElement>("#cancel"),
   openFolder: must<HTMLButtonElement>("#open-folder"),
+  settingsToggle: must<HTMLButtonElement>("#settings-toggle"),
+  settingsClose: must<HTMLButtonElement>("#settings-close"),
+  settingsBackdrop: must<HTMLElement>("#settings-backdrop"),
+  settingsDrawer: must<HTMLElement>("#settings-drawer"),
+  languageEn: must<HTMLButtonElement>("#language-en"),
+  languageZh: must<HTMLButtonElement>("#language-zh"),
   refreshTools: must<HTMLButtonElement>("#refresh-tools"),
   installTools: must<HTMLButtonElement>("#install-tools"),
   browseFolder: must<HTMLButtonElement>("#browse-folder"),
@@ -88,6 +270,7 @@ const elements = {
 
 window.addEventListener("DOMContentLoaded", () => {
   bindEvents();
+  applyTranslations();
   listen<DownloadProgress>("download-progress", (event) => updateDownloadProgress(event.payload));
   listen<ToolInstallProgress>("tool-install-progress", (event) => updateToolInstallProgress(event.payload));
   void bootstrap();
@@ -101,10 +284,92 @@ function must<T extends Element>(selector: string): T {
   return element;
 }
 
+function resolveInitialLanguage(): Language {
+  const stored = localStorage.getItem("yt-dlp-windows-language");
+  if (stored === "en" || stored === "zh") {
+    return stored;
+  }
+  return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
+}
+
+function t(key: TranslationKey, values: Record<string, string | number> = {}) {
+  let text: string = translations[state.language][key] || translations.en[key] || key;
+  for (const [name, value] of Object.entries(values)) {
+    text = text.split(`{${name}}`).join(String(value));
+  }
+  return text;
+}
+
+function applyTranslations() {
+  document.documentElement.lang = state.language === "zh" ? "zh-CN" : "en";
+  document.title = t("app.title");
+
+  document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((element) => {
+    const key = element.dataset.i18n as TranslationKey | undefined;
+    if (key) {
+      element.textContent = t(key);
+    }
+  });
+
+  document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("[data-i18n-placeholder]").forEach((element) => {
+    const key = element.dataset.i18nPlaceholder as TranslationKey | undefined;
+    if (key) {
+      element.placeholder = t(key);
+    }
+  });
+
+  document.querySelectorAll<HTMLElement>("[data-i18n-aria-label]").forEach((element) => {
+    const key = element.dataset.i18nAriaLabel as TranslationKey | undefined;
+    if (key) {
+      element.setAttribute("aria-label", t(key));
+    }
+  });
+
+  document.querySelectorAll<HTMLImageElement>("[data-i18n-alt]").forEach((element) => {
+    const key = element.dataset.i18nAlt as TranslationKey | undefined;
+    if (key) {
+      element.alt = t(key);
+    }
+  });
+
+  elements.languageEn.classList.toggle("is-active", state.language === "en");
+  elements.languageZh.classList.toggle("is-active", state.language === "zh");
+  elements.languageEn.setAttribute("aria-pressed", String(state.language === "en"));
+  elements.languageZh.setAttribute("aria-pressed", String(state.language === "zh"));
+  updateInstallButtonLabel();
+}
+
+function setLanguage(language: Language) {
+  state.language = language;
+  localStorage.setItem("yt-dlp-windows-language", language);
+  applyTranslations();
+  if (!state.metadata) {
+    renderEmptyPreview(t("preview.emptyStart"));
+  }
+}
+
+function setSettingsOpen(isOpen: boolean) {
+  elements.settingsDrawer.hidden = !isOpen;
+  elements.settingsBackdrop.hidden = !isOpen;
+  elements.settingsDrawer.setAttribute("aria-hidden", String(!isOpen));
+  document.body.classList.toggle("settings-open", isOpen);
+
+  if (isOpen) {
+    elements.settingsClose.focus();
+  } else {
+    elements.settingsToggle.focus();
+  }
+}
+
 function bindEvents() {
   elements.parse.addEventListener("click", () => void parseCurrentUrl());
   elements.download.addEventListener("click", () => void downloadCurrentVideo());
   elements.cancel.addEventListener("click", () => void cancelCurrentDownload());
+  elements.settingsToggle.addEventListener("click", () => setSettingsOpen(true));
+  elements.settingsClose.addEventListener("click", () => setSettingsOpen(false));
+  elements.settingsBackdrop.addEventListener("click", () => setSettingsOpen(false));
+  elements.languageEn.addEventListener("click", () => setLanguage("en"));
+  elements.languageZh.addEventListener("click", () => setLanguage("zh"));
   elements.refreshTools.addEventListener("click", () => void refreshTools());
   elements.installTools.addEventListener("click", () => void installTools());
   elements.openFolder.addEventListener("click", () => void openDownloadFolder());
@@ -119,7 +384,7 @@ function bindEvents() {
     if (elements.url.value.trim() !== state.lastUrl) {
       state.metadata = null;
       state.selectedFormat = null;
-      renderEmptyPreview("Paste a URL and parse it before downloading.");
+      renderEmptyPreview(t("preview.emptyChanged"));
       renderQualityOptions([]);
     }
     updateButtons();
@@ -130,11 +395,18 @@ function bindEvents() {
       void parseCurrentUrl();
     }
   });
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !elements.settingsDrawer.hidden) {
+      setSettingsOpen(false);
+    }
+  });
 }
 
 async function bootstrap() {
-  renderEmptyPreview("Paste a video URL to inspect the title, cover, duration and available qualities.");
-  logEvent("App booted.");
+  showNotice(t("notice.checkingTools"), "warning");
+  elements.progressText.textContent = t("progress.idle");
+  renderEmptyPreview(t("preview.emptyStart"));
+  logEvent(t("event.booted"));
   await loadAppState();
   await refreshTools();
 }
@@ -143,23 +415,23 @@ async function loadAppState() {
   const appState = await invoke<AppState>("get_app_state");
   elements.folderText.textContent = appState.download_directory;
   elements.folderInput.value = appState.download_directory;
-  elements.toolRoot.textContent = appState.tools_root || "Tools path not resolved yet";
+  elements.toolRoot.textContent = appState.tools_root || t("settings.toolsPathPending");
 }
 
 async function refreshTools() {
   setBusy(true, undefined, "tools");
-  elements.toolInstallStatus.textContent = "Checking bundled tools...";
+  elements.toolInstallStatus.textContent = t("settings.toolsChecking");
   try {
     const tools = await invoke<ToolStatus[]>("check_tools");
     state.toolsReady = tools.every((tool) => tool.availability === "available");
     renderTools(tools);
-    elements.installTools.textContent = state.toolsReady ? "Repair tools" : "Install tools";
-    elements.toolInstallStatus.textContent = state.toolsReady ? "All required tools are available." : "Missing tools can be installed automatically.";
-    showNotice(state.toolsReady ? "Toolchain ready." : "Some bundled tools are missing.", state.toolsReady ? "success" : "warning");
-    logEvent(state.toolsReady ? "yt-dlp, ffmpeg, ffprobe and deno are available." : "Tool check found missing tools.");
+    updateInstallButtonLabel();
+    elements.toolInstallStatus.textContent = state.toolsReady ? t("settings.toolsAvailable") : t("settings.toolsMissing");
+    showNotice(state.toolsReady ? t("notice.toolchainReady") : t("notice.toolsMissing"), state.toolsReady ? "success" : "warning");
+    logEvent(state.toolsReady ? t("event.toolsAvailable") : t("event.toolsMissing"));
   } catch (error) {
     state.toolsReady = false;
-    elements.toolInstallStatus.textContent = "Tool check failed.";
+    elements.toolInstallStatus.textContent = t("settings.toolCheckFailed");
     showNotice(String(error), "error");
   } finally {
     setBusy(false);
@@ -172,19 +444,19 @@ async function installTools() {
   }
 
   setBusy(true, undefined, "tools");
-  elements.toolInstallStatus.textContent = "Preparing toolchain install...";
+  elements.toolInstallStatus.textContent = t("settings.installMissing");
   try {
     const tools = await invoke<ToolStatus[]>("install_tools");
     state.toolsReady = tools.every((tool) => tool.availability === "available");
     renderTools(tools);
-    elements.installTools.textContent = state.toolsReady ? "Repair tools" : "Install tools";
-    elements.toolInstallStatus.textContent = state.toolsReady ? "Toolchain installed." : "Install finished, but some tools still need attention.";
-    showNotice(state.toolsReady ? "Toolchain installed." : "Tool install needs attention.", state.toolsReady ? "success" : "warning");
-    logEvent(state.toolsReady ? "Toolchain installed." : "Tool install completed with missing tools.");
+    updateInstallButtonLabel();
+    elements.toolInstallStatus.textContent = state.toolsReady ? t("settings.toolsInstalled") : t("settings.toolsInstallPartial");
+    showNotice(state.toolsReady ? t("notice.toolsInstalled") : t("notice.toolInstallNeedsAttention"), state.toolsReady ? "success" : "warning");
+    logEvent(state.toolsReady ? t("event.toolsInstalled") : t("event.toolsPartial"));
   } catch (error) {
-    elements.toolInstallStatus.textContent = "Tool install failed.";
+    elements.toolInstallStatus.textContent = t("settings.toolInstallFailed");
     showNotice(String(error), "error");
-    logEvent("Tool install failed.");
+    logEvent(t("event.toolInstallFailed"));
   } finally {
     setBusy(false);
   }
@@ -196,8 +468,8 @@ async function parseCurrentUrl() {
     return;
   }
 
-  setBusy(true, "Parsing video metadata...", "metadata");
-  renderEmptyPreview("Reading metadata from yt-dlp...");
+  setBusy(true, t("progress.parsing"), "metadata");
+  renderEmptyPreview(t("preview.readingMetadata"));
   try {
     const metadata = await invoke<VideoMetadata>("parse_metadata", { url });
     state.metadata = metadata;
@@ -205,12 +477,12 @@ async function parseCurrentUrl() {
     state.selectedFormat = metadata.format_options[0] ?? null;
     renderMetadata(metadata);
     renderQualityOptions(metadata.format_options);
-    showNotice("Metadata parsed.", "success");
-    logEvent(`Parsed ${metadata.title}`);
+    showNotice(t("notice.metadataParsed"), "success");
+    logEvent(t("event.parsed", { title: metadata.title }));
   } catch (error) {
-    renderEmptyPreview("Metadata parsing failed. Check the URL and bundled tools.");
+    renderEmptyPreview(t("preview.parseFailed"));
     showNotice(String(error), "error");
-    logEvent("Metadata parsing failed.");
+    logEvent(t("event.metadataFailed"));
   } finally {
     setBusy(false);
   }
@@ -224,7 +496,7 @@ async function downloadCurrentVideo() {
     return;
   }
 
-  setBusy(true, `Starting ${selectedFormat.label} download...`, "download");
+  setBusy(true, t("progress.startingDownload", { quality: selectedFormat.label }), "download");
   elements.progress.removeAttribute("value");
   try {
     const outputPath = await invoke<string | null>("download_video", {
@@ -235,20 +507,20 @@ async function downloadCurrentVideo() {
       },
     });
     elements.progress.value = 100;
-    elements.progressText.textContent = outputPath ? `Saved to ${outputPath}` : "Download completed. Open the folder to view the file.";
-    showNotice("Download completed.", "success");
-    logEvent(outputPath ? `Saved ${outputPath}` : "Download completed.");
+    elements.progressText.textContent = outputPath ? t("progress.savedTo", { path: outputPath }) : t("progress.completedOpenFolder");
+    showNotice(t("notice.downloadCompleted"), "success");
+    logEvent(outputPath ? t("event.saved", { path: outputPath }) : t("event.downloadCompleted"));
   } catch (error) {
     const message = String(error);
     elements.progress.value = 0;
     if (message.toLowerCase().includes("cancel")) {
-      elements.progressText.textContent = "Download cancelled.";
-      showNotice("Download cancelled.", "warning");
-      logEvent("Download cancelled.");
+      elements.progressText.textContent = t("progress.downloadCancelled");
+      showNotice(t("notice.downloadCancelled"), "warning");
+      logEvent(t("event.downloadCancelled"));
     } else {
-      elements.progressText.textContent = "Download failed.";
+      elements.progressText.textContent = t("progress.downloadFailed");
       showNotice(message, "error");
-      logEvent("Download failed.");
+      logEvent(t("event.downloadFailed"));
     }
   } finally {
     setBusy(false);
@@ -261,11 +533,11 @@ async function cancelCurrentDownload() {
   }
 
   state.cancelRequested = true;
-  elements.progressText.textContent = "Cancelling download...";
+  elements.progressText.textContent = t("progress.cancelling");
   updateButtons();
   try {
     await invoke("cancel_download");
-    logEvent("Cancel requested.");
+    logEvent(t("event.cancelRequested"));
   } catch (error) {
     showNotice(String(error), "error");
     state.cancelRequested = false;
@@ -284,7 +556,7 @@ async function openDownloadFolder() {
 async function browseDownloadFolder() {
   try {
     const selected = await open({
-      title: "Choose download folder",
+      title: t("settings.chooseFolder"),
       directory: true,
       multiple: false,
       defaultPath: elements.folderInput.value || undefined,
@@ -304,7 +576,7 @@ async function saveDownloadFolder() {
     const appState = await invoke<AppState>("set_download_directory", { directory: elements.folderInput.value });
     elements.folderText.textContent = appState.download_directory;
     elements.folderInput.value = appState.download_directory;
-    showNotice("Download folder updated.", "success");
+    showNotice(t("notice.folderUpdated"), "success");
   } catch (error) {
     showNotice(String(error), "error");
   }
@@ -315,7 +587,7 @@ async function resetDownloadFolder() {
     const appState = await invoke<AppState>("reset_download_directory");
     elements.folderText.textContent = appState.download_directory;
     elements.folderInput.value = appState.download_directory;
-    showNotice("Download folder reset.", "success");
+    showNotice(t("notice.folderReset"), "success");
   } catch (error) {
     showNotice(String(error), "error");
   }
@@ -330,7 +602,7 @@ function renderMetadata(metadata: VideoMetadata) {
   ]
     .filter(Boolean)
     .join(" · ");
-  elements.description.textContent = metadata.description?.trim() || "No description returned by yt-dlp.";
+  elements.description.textContent = metadata.description?.trim() || t("preview.noDescription");
 
   if (metadata.thumbnail_url) {
     elements.thumbnail.src = metadata.thumbnail_url;
@@ -344,7 +616,7 @@ function renderMetadata(metadata: VideoMetadata) {
 }
 
 function renderEmptyPreview(message: string) {
-  elements.title.textContent = "No video parsed";
+  elements.title.textContent = t("preview.noVideo");
   elements.details.textContent = message;
   elements.description.textContent = "";
   elements.thumbnail.removeAttribute("src");
@@ -393,7 +665,7 @@ function updateDownloadProgress(progress: DownloadProgress) {
     progress.status,
     typeof progress.percent === "number" ? `${progress.percent.toFixed(1)}%` : null,
     progress.speed,
-    progress.eta ? `ETA ${progress.eta}` : null,
+    progress.eta ? `${t("progress.eta")} ${progress.eta}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -421,6 +693,10 @@ function setBusy(isBusy: boolean, progressText?: string, operation: "metadata" |
   updateButtons();
 }
 
+function updateInstallButtonLabel() {
+  elements.installTools.textContent = t(state.toolsReady ? "action.repairTools" : "action.installTools");
+}
+
 function updateButtons() {
   const hasUrl = elements.url.value.trim().length > 0;
   elements.parse.disabled = state.busy || !hasUrl || !state.toolsReady;
@@ -433,7 +709,7 @@ function updateButtons() {
   elements.resetFolder.disabled = state.busy;
 }
 
-function showNotice(message: string, tone: "success" | "warning" | "error") {
+function showNotice(message: string, tone: NoticeTone) {
   elements.notice.textContent = message;
   elements.notice.className = `notice is-${tone}`;
 }
