@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "architecture": "win-x64",
+  "retrievedAtUtc": "2026-05-16T13:37:07Z",
+  "tools": [
+    {
+      "name": "yt-dlp",
+      "path": "Tools/win-x64/yt-dlp/yt-dlp.exe",
+      "sourceUrl": "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe",
+      "version": "2026.03.17",
+      "sha256": "3db811b366b2da47337d2fcfdfe5bbd9a258dad3f350c54974f005df115a1545",
+      "licenseNotes": "Official Windows standalone executable; yt-dlp README notes PyInstaller-bundled executables include GPLv3+ licensed code, making the combined work GPLv3+."
+    },
+    {
+      "name": "ffmpeg",
+      "path": "Tools/win-x64/ffmpeg/bin/ffmpeg.exe",
+      "sourceUrl": "https://github.com/yt-dlp/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip",
+      "version": "N-124468-gd0a84c660a-20260515",
+      "sha256": "6a059f42b85f54d9a413185d05ec16b7b5e85304af0bddd381d64a91be00adec",
+      "licenseNotes": "License depends on the build; this app uses the win64 gpl build source recommended by yt-dlp docs."
+    },
+    {
+      "name": "ffprobe",
+      "path": "Tools/win-x64/ffmpeg/bin/ffprobe.exe",
+      "sourceUrl": "https://github.com/yt-dlp/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip",
+      "version": "N-124468-gd0a84c660a-20260515",
+      "sha256": "c9bc6683d2e697be73cf54848374abc1ba7dd7d897697c2a1e2c2e46589dc377",
+      "licenseNotes": "Distributed with the same FFmpeg build as ffmpeg.exe."
+    },
+    {
+      "name": "deno",
+      "path": "Tools/win-x64/deno/deno.exe",
+      "sourceUrl": "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip",
+      "version": "2.7.14",
+      "sha256": "b6e83993f1f1ab97075a77043de61118966d719b5450bc631251d47c3a34230b",
+      "licenseNotes": "Deno is bundled as the JavaScript runtime for yt-dlp EJS support."
+    }
+  ]
+}

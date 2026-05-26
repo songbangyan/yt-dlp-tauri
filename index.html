@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <title>yt-dlp-windows</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero" aria-labelledby="app-title">
+        <div>
+          <p class="eyebrow">Tauri rebuild</p>
+          <h1 id="app-title">yt-dlp-windows</h1>
+          <p class="subtitle">Paste a video link, inspect the metadata, choose a quality and save an MP4 without touching the command line.</p>
+        </div>
+        <div id="notice" class="notice is-warning">Checking bundled tools...</div>
+      </section>
+
+      <section class="workspace" aria-label="video download workspace">
+        <div class="primary-flow">
+          <section class="panel intake-panel" aria-labelledby="url-heading">
+            <div class="section-heading">
+              <span class="step">01</span>
+              <div>
+                <h2 id="url-heading">Video URL</h2>
+                <p>Parse first, then download the exact quality you want.</p>
+              </div>
+            </div>
+            <div class="url-row">
+              <input id="url" type="url" spellcheck="false" placeholder="https://www.youtube.com/watch?v=..." />
+              <button id="parse" class="button primary" type="button">Parse</button>
+            </div>
+          </section>
+
+          <section class="panel preview-panel" aria-labelledby="preview-heading">
+            <div class="media-frame">
+              <img id="thumbnail" alt="video thumbnail" hidden />
+              <div id="thumbnail-empty" class="empty-thumbnail">
+                <span class="empty-icon">↓</span>
+                <span>Preview appears here</span>
+              </div>
+            </div>
+            <div class="preview-copy">
+              <div class="section-heading compact">
+                <span class="step">02</span>
+                <div>
+                  <h2 id="preview-heading">Preview</h2>
+                  <p>Title, source details and description returned by yt-dlp.</p>
+                </div>
+              </div>
+              <h3 id="video-title">No video parsed</h3>
+              <p id="video-details">Paste a video URL to inspect the title, cover, duration and available qualities.</p>
+              <p id="video-description"></p>
+            </div>
+          </section>
+
+          <section class="panel download-panel" aria-labelledby="download-heading">
+            <div class="section-heading">
+              <span class="step">03</span>
+              <div>
+                <h2 id="download-heading">Download</h2>
+                <p>Output goes to the configured folder as an MP4-friendly file.</p>
+              </div>
+            </div>
+            <div class="download-controls">
+              <label>
+                <span>Quality</span>
+                <select id="quality" disabled></select>
+              </label>
+              <button id="download" class="button primary" type="button" disabled>Download</button>
+              <button id="cancel" class="button danger" type="button" disabled>Cancel</button>
+              <button id="open-folder" class="button" type="button">Open folder</button>
+            </div>
+            <progress id="progress" max="100" value="0"></progress>
+            <p id="progress-text" class="progress-text">Idle</p>
+          </section>
+        </div>
+
+        <aside class="side-rail" aria-label="settings and diagnostics">
+          <section class="panel tools-panel" aria-labelledby="tools-heading">
+            <div class="section-heading compact">
+              <span class="step">A</span>
+              <div>
+                <h2 id="tools-heading">Toolchain</h2>
+                <p>Expected under the app-local Tools folder.</p>
+              </div>
+            </div>
+            <p id="tool-root" class="path-text">Resolving tools path...</p>
+            <ul id="tool-list" class="tool-list"></ul>
+            <button id="refresh-tools" class="button full-width" type="button">Refresh tools</button>
+          </section>
+
+          <section class="panel folder-panel" aria-labelledby="folder-heading">
+            <div class="section-heading compact">
+              <span class="step">B</span>
+              <div>
+                <h2 id="folder-heading">Output folder</h2>
+                <p id="folder-text">Resolving download folder...</p>
+              </div>
+            </div>
+            <input id="folder-input" type="text" spellcheck="false" />
+            <div class="split-actions">
+              <button id="browse-folder" class="button" type="button">Browse</button>
+              <button id="save-folder" class="button" type="button">Save</button>
+              <button id="reset-folder" class="button" type="button">Reset</button>
+            </div>
+          </section>
+
+          <section class="panel events-panel" aria-labelledby="events-heading">
+            <div class="section-heading compact">
+              <span class="step">C</span>
+              <div>
+                <h2 id="events-heading">Activity</h2>
+                <p>Recent app events stay local.</p>
+              </div>
+            </div>
+            <ul id="events" class="events"></ul>
+          </section>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>
