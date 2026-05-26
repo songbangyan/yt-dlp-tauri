@@ -478,18 +478,23 @@ progress::-webkit-progress-value {
 
 .settings-footer-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: start;
-  gap: 12px;
+  column-gap: 8px;
+  row-gap: 5px;
 }
 
-.settings-meta {
-  display: grid;
+.settings-version-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
   min-width: 0;
-  gap: 3px;
+  white-space: nowrap;
 }
 
 .update-status {
+  grid-column: 1 / -1;
   min-width: 0;
   color: var(--muted);
   overflow-wrap: anywhere;
@@ -514,14 +519,16 @@ progress::-webkit-progress-value {
 .settings-footer-actions {
   display: flex;
   flex-wrap: wrap;
+  min-width: 0;
   justify-content: flex-end;
   gap: 8px;
 }
 
 .settings-footer .button {
   min-height: 34px;
-  padding: 0 12px;
+  padding: 0 9px;
   font-size: 0.84rem;
+  white-space: nowrap;
 }
 
 .github-site-section {
