@@ -266,11 +266,6 @@ select:focus {
   color: color-mix(in oklch, var(--danger), var(--text) 12%);
 }
 
-.button.full-width {
-  width: 100%;
-  margin-top: 14px;
-}
-
 .media-frame {
   position: relative;
   aspect-ratio: 16 / 9;
@@ -406,6 +401,21 @@ progress::-webkit-progress-value {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tool-install-status {
+  min-height: 22px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
+.tool-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .folder-panel input {

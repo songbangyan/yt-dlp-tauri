@@ -25,11 +25,11 @@ function Download-File([string] $Url, [string] $Destination) {
 }
 
 $ytDlp = Join-Path $ToolsRoot 'yt-dlp\yt-dlp.exe'
-Download-File 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe' $ytDlp
+Download-File 'https://github.com/yt-dlp/yt-dlp/releases/download/2026.03.17/yt-dlp.exe' $ytDlp
 Assert-Hash $ytDlp '3db811b366b2da47337d2fcfdfe5bbd9a258dad3f350c54974f005df115a1545'
 
-$ffmpegZip = Join-Path $TempRoot 'ffmpeg-master-latest-win64-gpl.zip'
-Download-File 'https://github.com/yt-dlp/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip' $ffmpegZip
+$ffmpegZip = Join-Path $TempRoot 'ffmpeg-N-124634-g69bdb05f36-win64-gpl.zip'
+Download-File 'https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-05-25-16-31/ffmpeg-N-124634-g69bdb05f36-win64-gpl.zip' $ffmpegZip
 $ffmpegExtract = Join-Path $TempRoot 'ffmpeg'
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $ffmpegExtract
 Expand-Archive -Force -Path $ffmpegZip -DestinationPath $ffmpegExtract
@@ -39,11 +39,11 @@ $ffmpegBin = Join-Path $ToolsRoot 'ffmpeg\bin'
 New-Item -ItemType Directory -Force -Path $ffmpegBin | Out-Null
 Copy-Item -Force (Join-Path $ffmpegSourceRoot.FullName 'bin\ffmpeg.exe') (Join-Path $ffmpegBin 'ffmpeg.exe')
 Copy-Item -Force (Join-Path $ffmpegSourceRoot.FullName 'bin\ffprobe.exe') (Join-Path $ffmpegBin 'ffprobe.exe')
-Assert-Hash (Join-Path $ffmpegBin 'ffmpeg.exe') '6a059f42b85f54d9a413185d05ec16b7b5e85304af0bddd381d64a91be00adec'
-Assert-Hash (Join-Path $ffmpegBin 'ffprobe.exe') 'c9bc6683d2e697be73cf54848374abc1ba7dd7d897697c2a1e2c2e46589dc377'
+Assert-Hash (Join-Path $ffmpegBin 'ffmpeg.exe') 'af4013cf0cf890bc7a6f91738fa0d391d3870f342fef5c77803bde5b692adaa5'
+Assert-Hash (Join-Path $ffmpegBin 'ffprobe.exe') '8c0b8a4d3bbad0b12953b008dd6fd19856fd91abbb0e01aad44735f845b617bd'
 
 $denoZip = Join-Path $TempRoot 'deno-x86_64-pc-windows-msvc.zip'
-Download-File 'https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip' $denoZip
+Download-File 'https://github.com/denoland/deno/releases/download/v2.7.14/deno-x86_64-pc-windows-msvc.zip' $denoZip
 $denoExtract = Join-Path $TempRoot 'deno'
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $denoExtract
 Expand-Archive -Force -Path $denoZip -DestinationPath $denoExtract

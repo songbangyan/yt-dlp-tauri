@@ -15,6 +15,7 @@ Implemented:
 - Download with live progress, speed, ETA, and cancellation.
 - Choose, save, reset, and open the output folder.
 - Check bundled `yt-dlp`, FFmpeg / ffprobe, and Deno status.
+- Install or repair the current target's toolchain from inside the app.
 - Keep local operational logs.
 
 ## Stack
@@ -25,12 +26,12 @@ Implemented:
 | Backend | Rust |
 | Frontend | Vanilla TypeScript + Vite |
 | UI style | Product UI tuned with `$impeccable`: restrained surfaces, dense workflow layout, stable controls |
-| Toolchain | Bundled Windows `yt-dlp.exe`, `ffmpeg.exe`, `ffprobe.exe`, `deno.exe` |
+| Toolchain | App-managed Windows `yt-dlp.exe`, `ffmpeg.exe`, `ffprobe.exe`, `deno.exe` |
 | Bundle target | NSIS installer |
 
 ## Build From Source
 
-Use Windows for the real app build because the bundled tools are `win-x64` executables.
+Use Windows for the real app build. The app can install its own toolchain on first run, and `scripts/download-tools.ps1` remains available for development or offline packaging.
 
 Prerequisites:
 
@@ -46,11 +47,13 @@ Install dependencies:
 npm install
 ```
 
-Restore bundled tools:
+Optional: pre-restore tools for a development checkout:
 
 ```powershell
 .\scripts\download-tools.ps1
 ```
+
+This step is optional for normal app use. If tools are missing, open the app and click `Install tools` in the Toolchain panel.
 
 Run in development:
 
@@ -80,7 +83,7 @@ Rust backend check:
 cargo check --manifest-path .\src-tauri\Cargo.toml
 ```
 
-The WSL environment can run those checks, but it is not the right place to run the app because the bundled downloader tools are Windows executables.
+The WSL environment can run those checks. For a real Windows release, build on Windows with the MSVC Rust toolchain.
 
 ## Runtime Data
 
@@ -97,7 +100,7 @@ App state and logs are stored under:
 %LOCALAPPDATA%\yt-dlp-windows-tauri\logs\app.log
 ```
 
-Bundled tools are expected at:
+Development checkout tools can live at:
 
 ```text
 src-tauri\Tools\win-x64\yt-dlp\yt-dlp.exe
@@ -106,7 +109,13 @@ src-tauri\Tools\win-x64\ffmpeg\bin\ffprobe.exe
 src-tauri\Tools\win-x64\deno\deno.exe
 ```
 
-Versions, source URLs, and SHA-256 hashes are tracked in [`src-tauri/tools-manifest.json`](./src-tauri/tools-manifest.json).
+Installed app tools are written under the app data directory instead, for example:
+
+```text
+%LOCALAPPDATA%\yt-dlp-windows-tauri\Tools\win-x64\
+```
+
+Versions, source URLs, target names, and SHA-256 hashes are tracked in [`src-tauri/tools-manifest.json`](./src-tauri/tools-manifest.json).
 
 ## Project Layout
 
@@ -116,12 +125,12 @@ src/main.ts                   Tauri command wiring and UI state
 src/styles.css                product UI styling
 src-tauri/src/lib.rs          Rust backend commands and yt-dlp process control
 src-tauri/tauri.conf.json     Tauri app and bundle configuration
-scripts/download-tools.ps1    restores the Windows toolchain
+scripts/download-tools.ps1    optional development restore script
 ```
 
 ## Tool Update Note
 
-The restore script currently follows the original project's pattern: `latest` release URLs plus pinned SHA-256 hashes. That is reproducible only until an upstream `latest` release changes. For release-grade distribution, pin exact release artifact URLs or update `tools-manifest.json` and `scripts/download-tools.ps1` together.
+The app installs the current target from `src-tauri/tools-manifest.json` and verifies each extracted executable with SHA-256. `win-x64` is populated now; the manifest structure is ready for `win-arm64` once all tool URLs and hashes are pinned.
 
 ## License
 

@@ -42,11 +42,17 @@ type DownloadProgress = {
   raw?: string;
 };
 
+type ToolInstallProgress = {
+  percent?: number;
+  status: string;
+  tool?: string;
+};
+
 const state = {
   metadata: null as VideoMetadata | null,
   selectedFormat: null as VideoFormatOption | null,
   busy: false,
-  activeOperation: null as "metadata" | "download" | null,
+  activeOperation: null as "metadata" | "download" | "tools" | null,
   cancelRequested: false,
   lastUrl: "",
   toolsReady: false,
@@ -59,6 +65,7 @@ const elements = {
   cancel: must<HTMLButtonElement>("#cancel"),
   openFolder: must<HTMLButtonElement>("#open-folder"),
   refreshTools: must<HTMLButtonElement>("#refresh-tools"),
+  installTools: must<HTMLButtonElement>("#install-tools"),
   browseFolder: must<HTMLButtonElement>("#browse-folder"),
   resetFolder: must<HTMLButtonElement>("#reset-folder"),
   saveFolder: must<HTMLButtonElement>("#save-folder"),
@@ -66,6 +73,7 @@ const elements = {
   folderText: must<HTMLElement>("#folder-text"),
   toolRoot: must<HTMLElement>("#tool-root"),
   toolList: must<HTMLElement>("#tool-list"),
+  toolInstallStatus: must<HTMLElement>("#tool-install-status"),
   title: must<HTMLElement>("#video-title"),
   details: must<HTMLElement>("#video-details"),
   description: must<HTMLElement>("#video-description"),
@@ -81,6 +89,7 @@ const elements = {
 window.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   listen<DownloadProgress>("download-progress", (event) => updateDownloadProgress(event.payload));
+  listen<ToolInstallProgress>("tool-install-progress", (event) => updateToolInstallProgress(event.payload));
   void bootstrap();
 });
 
@@ -97,6 +106,7 @@ function bindEvents() {
   elements.download.addEventListener("click", () => void downloadCurrentVideo());
   elements.cancel.addEventListener("click", () => void cancelCurrentDownload());
   elements.refreshTools.addEventListener("click", () => void refreshTools());
+  elements.installTools.addEventListener("click", () => void installTools());
   elements.openFolder.addEventListener("click", () => void openDownloadFolder());
   elements.browseFolder.addEventListener("click", () => void browseDownloadFolder());
   elements.saveFolder.addEventListener("click", () => void saveDownloadFolder());
@@ -137,16 +147,44 @@ async function loadAppState() {
 }
 
 async function refreshTools() {
-  setBusy(true, "Checking bundled tools...");
+  setBusy(true, undefined, "tools");
+  elements.toolInstallStatus.textContent = "Checking bundled tools...";
   try {
     const tools = await invoke<ToolStatus[]>("check_tools");
     state.toolsReady = tools.every((tool) => tool.availability === "available");
     renderTools(tools);
+    elements.installTools.textContent = state.toolsReady ? "Repair tools" : "Install tools";
+    elements.toolInstallStatus.textContent = state.toolsReady ? "All required tools are available." : "Missing tools can be installed automatically.";
     showNotice(state.toolsReady ? "Toolchain ready." : "Some bundled tools are missing.", state.toolsReady ? "success" : "warning");
     logEvent(state.toolsReady ? "yt-dlp, ffmpeg, ffprobe and deno are available." : "Tool check found missing tools.");
   } catch (error) {
     state.toolsReady = false;
+    elements.toolInstallStatus.textContent = "Tool check failed.";
     showNotice(String(error), "error");
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function installTools() {
+  if (state.busy) {
+    return;
+  }
+
+  setBusy(true, undefined, "tools");
+  elements.toolInstallStatus.textContent = "Preparing toolchain install...";
+  try {
+    const tools = await invoke<ToolStatus[]>("install_tools");
+    state.toolsReady = tools.every((tool) => tool.availability === "available");
+    renderTools(tools);
+    elements.installTools.textContent = state.toolsReady ? "Repair tools" : "Install tools";
+    elements.toolInstallStatus.textContent = state.toolsReady ? "Toolchain installed." : "Install finished, but some tools still need attention.";
+    showNotice(state.toolsReady ? "Toolchain installed." : "Tool install needs attention.", state.toolsReady ? "success" : "warning");
+    logEvent(state.toolsReady ? "Toolchain installed." : "Tool install completed with missing tools.");
+  } catch (error) {
+    elements.toolInstallStatus.textContent = "Tool install failed.";
+    showNotice(String(error), "error");
+    logEvent("Tool install failed.");
   } finally {
     setBusy(false);
   }
@@ -361,7 +399,17 @@ function updateDownloadProgress(progress: DownloadProgress) {
     .join(" · ");
 }
 
-function setBusy(isBusy: boolean, progressText?: string, operation: "metadata" | "download" | null = null) {
+function updateToolInstallProgress(progress: ToolInstallProgress) {
+  elements.toolInstallStatus.textContent = [
+    progress.status,
+    typeof progress.percent === "number" ? `${progress.percent.toFixed(0)}%` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  logEvent(progress.tool ? `${progress.status}: ${progress.tool}` : progress.status);
+}
+
+function setBusy(isBusy: boolean, progressText?: string, operation: "metadata" | "download" | "tools" | null = null) {
   state.busy = isBusy;
   state.activeOperation = isBusy ? operation : null;
   if (!isBusy) {
@@ -379,6 +427,7 @@ function updateButtons() {
   elements.download.disabled = state.busy || !state.metadata || !state.selectedFormat || !state.toolsReady;
   elements.cancel.disabled = state.activeOperation !== "download" || state.cancelRequested;
   elements.refreshTools.disabled = state.busy;
+  elements.installTools.disabled = state.busy;
   elements.browseFolder.disabled = state.busy;
   elements.saveFolder.disabled = state.busy;
   elements.resetFolder.disabled = state.busy;

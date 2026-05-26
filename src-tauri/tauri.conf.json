@@ -28,7 +28,6 @@
     "active": true,
     "targets": ["nsis"],
     "resources": [
-      "Tools/",
       "tools-manifest.json"
     ],
     "icon": [

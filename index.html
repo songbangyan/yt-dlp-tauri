@@ -84,12 +84,16 @@
               <span class="step">A</span>
               <div>
                 <h2 id="tools-heading">Toolchain</h2>
-                <p>Expected under the app-local Tools folder.</p>
+                <p>Installed per target and verified with SHA-256.</p>
               </div>
             </div>
             <p id="tool-root" class="path-text">Resolving tools path...</p>
             <ul id="tool-list" class="tool-list"></ul>
-            <button id="refresh-tools" class="button full-width" type="button">Refresh tools</button>
+            <p id="tool-install-status" class="tool-install-status">Install missing tools automatically.</p>
+            <div class="tool-actions">
+              <button id="refresh-tools" class="button" type="button">Refresh</button>
+              <button id="install-tools" class="button primary" type="button">Install tools</button>
+            </div>
           </section>
 
           <section class="panel folder-panel" aria-labelledby="folder-heading">
