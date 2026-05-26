@@ -47,6 +47,10 @@ jobs:
       - name: Check Rust backend
         run: cargo check --manifest-path .\src-tauri\Cargo.toml
 
+      - name: Prepare release notes
+        id: release-notes
+        run: node .github/scripts/extract-release-notes.mjs --output release-notes.md
+
       - name: Build and draft release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -54,11 +58,6 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: yt-dlp-tauri v__VERSION__
-          releaseBody: |
-            Windows x64 preview release.
-
-            This release builds the NSIS installer from the pinned source tree. The app installs its Windows toolchain from fixed URLs and verifies SHA-256 hashes at runtime.
-
-            See README.md and THIRD-PARTY-NOTICES.md before redistribution.
+          releaseBody: ${{ steps.release-notes.outputs.release_body }}
           releaseDraft: true
           prerelease: true
