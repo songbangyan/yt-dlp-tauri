@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.1.3 - 2026-05-27
+
+- Added GitHub Actions release packaging for Windows NSIS, macOS Intel DMG, and macOS Apple Silicon DMG artifacts from `v*` tags.
+- Added macOS tool manifest targets and platform-specific backend tool path resolution.
+- Documented the `yt-dlp` supported-sites list in English and Chinese READMEs.
+
 ## 0.1.2 - 2026-05-26
 
 - Added GitHub release notes generation from the matching `CHANGELOG.md` version section.
