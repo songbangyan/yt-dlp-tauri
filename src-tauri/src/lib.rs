@@ -11,7 +11,7 @@ use std::{
     process::{Command, Stdio},
     sync::{Arc, Mutex},
     thread,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -959,32 +959,77 @@ fn download_source_to_file(
         },
     );
 
-    let output = background_command("curl")
-        .args([
-            "-L",
-            "--fail",
-            "--show-error",
-            "--silent",
-            "--retry",
-            "2",
-            "--output",
-        ])
-        .arg(destination)
-        .arg(source_url)
-        .output()
-        .map_err(|error| format!("Failed to start curl for {tool_name}: {error}"))?;
+    install_rustls_crypto_provider();
 
-    if !output.status.success() {
-        return Err(process_failure_message(
-            &format!(
-                "Failed to download {tool_name} from {source_url} to {}.",
+    let client = reqwest::blocking::Client::builder()
+        .connect_timeout(Duration::from_secs(30))
+        .timeout(Duration::from_secs(60 * 60))
+        .user_agent(format!("yt-dlp-tauri/{}", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|error| format!("Failed to prepare HTTP client for {tool_name}: {error}"))?;
+    let mut response = client
+        .get(source_url)
+        .send()
+        .map_err(|error| format!("Failed to download {tool_name} from {source_url}: {error}"))?;
+    response
+        .error_for_status_ref()
+        .map_err(|error| format!("Failed to download {tool_name} from {source_url}: {error}"))?;
+
+    let total_bytes = response.content_length();
+    let mut file = fs::File::create(destination).map_err(|error| {
+        format!(
+            "Failed to create download file for {tool_name} at {}: {error}",
+            destination.display()
+        )
+    })?;
+    let mut buffer = [0_u8; 64 * 1024];
+    let mut downloaded_bytes = 0_u64;
+    let mut last_display_percent =
+        download_progress_percent(base_percent, span_percent, 0, total_bytes)
+            .map(display_percent_bucket);
+
+    loop {
+        let byte_count = response.read(&mut buffer).map_err(|error| {
+            remove_partial_download(destination);
+            format!("Failed to read HTTP response for {tool_name}: {error}")
+        })?;
+        if byte_count == 0 {
+            break;
+        }
+
+        file.write_all(&buffer[..byte_count]).map_err(|error| {
+            remove_partial_download(destination);
+            format!(
+                "Failed to write downloaded {tool_name} to {}: {error}",
                 destination.display()
-            ),
-            output.status.code(),
-            &output.stderr,
-            &output.stdout,
-        ));
+            )
+        })?;
+        downloaded_bytes += byte_count as u64;
+
+        if let Some(percent) =
+            download_progress_percent(base_percent, span_percent, downloaded_bytes, total_bytes)
+        {
+            let display_percent = display_percent_bucket(percent);
+            if Some(display_percent) != last_display_percent {
+                emit_tool_install_progress(
+                    app,
+                    ToolInstallProgress {
+                        percent: Some(percent),
+                        status: status.to_string(),
+                        tool: Some(tool_name.to_string()),
+                    },
+                );
+                last_display_percent = Some(display_percent);
+            }
+        }
     }
+    file.flush().map_err(|error| {
+        remove_partial_download(destination);
+        format!(
+            "Failed to flush downloaded {tool_name} to {}: {error}",
+            destination.display()
+        )
+    })?;
 
     emit_tool_install_progress(
         app,
@@ -995,6 +1040,33 @@ fn download_source_to_file(
         },
     );
     Ok(())
+}
+
+fn install_rustls_crypto_provider() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
+fn download_progress_percent(
+    base_percent: f64,
+    span_percent: f64,
+    downloaded_bytes: u64,
+    total_bytes: Option<u64>,
+) -> Option<f64> {
+    let total_bytes = total_bytes?;
+    if total_bytes == 0 {
+        return None;
+    }
+
+    let ratio = (downloaded_bytes as f64 / total_bytes as f64).clamp(0.0, 1.0);
+    Some((base_percent + span_percent * ratio).min(99.0))
+}
+
+fn display_percent_bucket(percent: f64) -> i64 {
+    percent.round() as i64
+}
+
+fn remove_partial_download(path: &Path) {
+    let _ = fs::remove_file(path);
 }
 
 fn extract_zip_archive(zip_path: &Path, destination: &Path) -> Result<(), String> {
@@ -2034,6 +2106,24 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn maps_downloaded_bytes_to_tool_install_percent() {
+        assert_eq!(
+            download_progress_percent(50.0, 30.0, 25, Some(100)),
+            Some(57.5)
+        );
+        assert_eq!(
+            download_progress_percent(50.0, 30.0, 100, Some(100)),
+            Some(80.0)
+        );
+        assert_eq!(
+            download_progress_percent(98.0, 10.0, 100, Some(100)),
+            Some(99.0)
+        );
+        assert_eq!(download_progress_percent(50.0, 30.0, 25, None), None);
+        assert_eq!(download_progress_percent(50.0, 30.0, 25, Some(0)), None);
     }
 
     #[test]
