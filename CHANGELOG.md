@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.1.6 - 2026-06-23
+
 ### 中文
 
 - 将应用管理的 `yt-dlp` 更新到 `2026.06.09`，减少站点 extractor 过期导致的解析失败。
