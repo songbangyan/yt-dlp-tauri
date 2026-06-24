@@ -17,6 +17,9 @@ use tauri::{AppHandle, Emitter, Manager};
 
 const TOOLS_DIRECTORY: &str = "Tools";
 const TOOLS_MANIFEST_FILE: &str = "tools-manifest.json";
+const LATEST_RELEASE_API_URL: &str =
+    "https://api.github.com/repos/Chlience/yt-dlp-tauri/releases/latest";
+const GITHUB_PROXY_URL_PREFIX: &str = "https://gh-proxy.com/";
 const TOOL_DOWNLOAD_MAX_ATTEMPTS: usize = 3;
 const PROGRESS_PREFIX: &str = "yt-dlp-tauri-progress:";
 const OUTPUT_PATH_PREFIX: &str = "yt-dlp-tauri-output:";
@@ -84,6 +87,13 @@ struct ToolInstallProgress {
     percent: Option<f64>,
     status: String,
     tool: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LatestToolManifestResult {
+    status: String,
+    manifest_json: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -286,6 +296,17 @@ async fn check_tools_with_manifest(
         let target_name = current_tool_target()?;
         let target = manifest_target_from_json(&manifest_json, &target_name)?;
         probe_manifest_tools(&app, &target)
+    })
+    .await
+    .map_err(join_error)?
+}
+
+#[tauri::command]
+async fn fetch_latest_tool_manifest(
+    github_access_mode: String,
+) -> Result<LatestToolManifestResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        fetch_latest_tool_manifest_blocking(&github_access_mode)
     })
     .await
     .map_err(join_error)?
@@ -675,6 +696,93 @@ fn manifest_from_json(json: &str) -> Result<ToolsManifest, String> {
         return Err("tools-manifest.json schemaVersion must be 2 or newer.".to_string());
     }
     Ok(manifest)
+}
+
+fn fetch_latest_tool_manifest_blocking(
+    github_access_mode: &str,
+) -> Result<LatestToolManifestResult, String> {
+    let client = build_tool_download_client("tool manifest")?;
+    let release_url = resolve_github_url_for_mode(LATEST_RELEASE_API_URL, github_access_mode);
+    let release_response = client
+        .get(&release_url)
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .map_err(|error| format!("Failed to fetch latest release from {release_url}: {error}"))?;
+    let release_status = release_response.status();
+
+    if release_status.as_u16() == 404 {
+        return Ok(LatestToolManifestResult {
+            status: "no_release".to_string(),
+            manifest_json: None,
+        });
+    }
+
+    if !release_status.is_success() {
+        let body = release_response.text().unwrap_or_default();
+        return Err(github_http_error_message(release_status, &body));
+    }
+
+    let release_body = release_response
+        .text()
+        .map_err(|error| format!("Failed to read latest release response: {error}"))?;
+    let release_payload: Value = serde_json::from_str(&release_body)
+        .map_err(|error| format!("Failed to parse latest release response: {error}"))?;
+    let Some(download_url) = find_tool_manifest_download_url(&release_payload) else {
+        return Ok(LatestToolManifestResult {
+            status: "no_manifest".to_string(),
+            manifest_json: None,
+        });
+    };
+
+    let manifest_url = resolve_github_url_for_mode(&download_url, github_access_mode);
+    let manifest_response = client
+        .get(&manifest_url)
+        .header("Accept", "application/json")
+        .send()
+        .map_err(|error| {
+            format!("Failed to fetch {TOOLS_MANIFEST_FILE} from {manifest_url}: {error}")
+        })?;
+    let manifest_status = manifest_response.status();
+    if !manifest_status.is_success() {
+        let body = manifest_response.text().unwrap_or_default();
+        return Err(github_http_error_message(manifest_status, &body));
+    }
+
+    let manifest_json = manifest_response
+        .text()
+        .map_err(|error| format!("Failed to read {TOOLS_MANIFEST_FILE}: {error}"))?;
+
+    Ok(LatestToolManifestResult {
+        status: "available".to_string(),
+        manifest_json: Some(manifest_json),
+    })
+}
+
+fn find_tool_manifest_download_url(payload: &Value) -> Option<String> {
+    payload.get("assets")?.as_array()?.iter().find_map(|asset| {
+        let name = asset.get("name")?.as_str()?;
+        let download_url = asset.get("browser_download_url")?.as_str()?;
+        (name == TOOLS_MANIFEST_FILE).then(|| download_url.to_string())
+    })
+}
+
+fn resolve_github_url_for_mode(url: &str, github_access_mode: &str) -> String {
+    if github_access_mode == "gh-proxy" && !url.starts_with(GITHUB_PROXY_URL_PREFIX) {
+        format!("{GITHUB_PROXY_URL_PREFIX}{url}")
+    } else {
+        url.to_string()
+    }
+}
+
+fn github_http_error_message(status: reqwest::StatusCode, body: &str) -> String {
+    let api_message = serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|payload| payload.get("message")?.as_str().map(str::to_string));
+
+    match api_message {
+        Some(message) if !message.is_empty() => format!("{status}: {message}"),
+        _ => status.to_string(),
+    }
 }
 
 fn manifest_target_from_manifest(
@@ -2324,6 +2432,61 @@ mod tests {
     }
 
     #[test]
+    fn resolves_github_urls_through_proxy_when_requested() {
+        assert_eq!(
+            resolve_github_url_for_mode("https://github.com/Chlience/yt-dlp-tauri", "direct"),
+            "https://github.com/Chlience/yt-dlp-tauri"
+        );
+        assert_eq!(
+            resolve_github_url_for_mode("https://github.com/Chlience/yt-dlp-tauri", "gh-proxy"),
+            "https://gh-proxy.com/https://github.com/Chlience/yt-dlp-tauri"
+        );
+        assert_eq!(
+            resolve_github_url_for_mode(
+                "https://gh-proxy.com/https://github.com/Chlience/yt-dlp-tauri",
+                "gh-proxy"
+            ),
+            "https://gh-proxy.com/https://github.com/Chlience/yt-dlp-tauri"
+        );
+    }
+
+    #[test]
+    fn finds_tool_manifest_download_url_in_release_payload() {
+        let payload = serde_json::json!({
+            "assets": [
+                {
+                    "name": "yt-dlp-tauri_0.1.10_windows_x64-setup.exe",
+                    "browser_download_url": "https://example.test/setup.exe"
+                },
+                {
+                    "name": "tools-manifest.json",
+                    "browser_download_url": "https://github.com/Chlience/yt-dlp-tauri/releases/download/v0.1.10/tools-manifest.json"
+                }
+            ]
+        });
+
+        assert_eq!(
+            find_tool_manifest_download_url(&payload).as_deref(),
+            Some("https://github.com/Chlience/yt-dlp-tauri/releases/download/v0.1.10/tools-manifest.json")
+        );
+    }
+
+    #[test]
+    fn github_http_error_message_prefers_api_message_body() {
+        assert_eq!(
+            github_http_error_message(
+                reqwest::StatusCode::FORBIDDEN,
+                r#"{"message":"API rate limit exceeded"}"#
+            ),
+            "403 Forbidden: API rate limit exceeded"
+        );
+        assert_eq!(
+            github_http_error_message(reqwest::StatusCode::NOT_FOUND, ""),
+            "404 Not Found"
+        );
+    }
+
+    #[test]
     fn maps_downloaded_bytes_to_current_file_percent() {
         assert_eq!(download_progress_percent(25, Some(100)), Some(25.0));
         assert_eq!(download_progress_percent(100, Some(100)), Some(100.0));
@@ -2514,6 +2677,7 @@ pub fn run() {
             open_download_directory,
             check_tools,
             check_tools_with_manifest,
+            fetch_latest_tool_manifest,
             install_tools,
             install_tools_from_manifest,
             reinstall_tools,

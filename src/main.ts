@@ -6,7 +6,7 @@ import changelogMarkdown from "../CHANGELOG.md?raw";
 import packageInfo from "../package.json";
 import { releaseNotesForVersion, shouldShowReleaseNotes, stripTerminalSentencePunctuation } from "./release-notes";
 import { thumbnailUrlCandidates } from "./thumbnail";
-import { findToolManifestAsset, summarizeTools, type ToolAction, type ToolStatus, type ToolSummaryMode } from "./toolchain";
+import { summarizeTools, type ToolAction, type ToolStatus, type ToolSummaryMode } from "./toolchain";
 import { type GithubAccessMode, getUpdateStatus, parseGithubHttpError, parseLatestRelease, resolveGithubUrl } from "./update-check";
 
 type VideoFormatOption = {
@@ -46,6 +46,11 @@ type ToolInstallProgress = {
   percent?: number;
   status: string;
   tool?: string;
+};
+
+type LatestToolManifestResult = {
+  status: "available" | "no_release" | "no_manifest";
+  manifestJson?: string | null;
 };
 
 const APP_VERSION = packageInfo.version;
@@ -737,43 +742,29 @@ async function checkToolUpdates() {
   }
   elements.toolInstallStatus.textContent = t("settings.toolUpdatesChecking");
   try {
-    const releaseResponse = await fetch(resolveGithubUrl(LATEST_RELEASE_API_URL, state.githubAccessMode), {
-      cache: "no-store",
-      headers: {
-        Accept: "application/vnd.github+json",
-      },
+    const manifestResult = await invoke<LatestToolManifestResult>("fetch_latest_tool_manifest", {
+      githubAccessMode: state.githubAccessMode,
     });
 
-    if (releaseResponse.status === 404) {
+    if (manifestResult.status === "no_release") {
       elements.toolInstallStatus.textContent = t("updates.noRelease");
       showNotice(t("updates.noRelease"), "warning");
       return;
     }
 
-    if (!releaseResponse.ok) {
-      throw new Error((await parseGithubHttpError(releaseResponse)).message);
-    }
-
-    const releasePayload = await releaseResponse.json();
-    const manifestAsset = findToolManifestAsset(releasePayload);
-    if (!manifestAsset) {
+    if (manifestResult.status === "no_manifest") {
       elements.toolInstallStatus.textContent = t("settings.toolUpdatesNoManifest");
       showNotice(t("settings.toolUpdatesNoManifest"), "warning");
       return;
     }
 
-    const manifestResponse = await fetch(resolveGithubUrl(manifestAsset.downloadUrl, state.githubAccessMode), {
-      cache: "no-store",
-      headers: {
-        Accept: "application/json",
-      },
-    });
-
-    if (!manifestResponse.ok) {
-      throw new Error((await parseGithubHttpError(manifestResponse)).message);
+    if (!manifestResult.manifestJson) {
+      elements.toolInstallStatus.textContent = t("settings.toolUpdatesInvalidManifest");
+      showNotice(t("settings.toolUpdatesInvalidManifest"), "warning");
+      return;
     }
 
-    const manifestJson = await manifestResponse.text();
+    const manifestJson = manifestResult.manifestJson;
     const tools = await invoke<ToolStatus[]>("check_tools_with_manifest", { manifestJson });
     const summary = applyToolSummary(tools, "remote");
     if (summary.action) {
