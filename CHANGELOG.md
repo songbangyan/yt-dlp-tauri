@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.1.9 - 2026-06-24
+
 ### 中文
 
 - Settings 工具链操作改为验证工具、检查工具更新、安装、更新和重新安装，不再使用含义模糊的修复工具主操作。
