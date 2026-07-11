@@ -200,5 +200,5 @@ export function renderToolchainChangelog(previous, current, existing = "") {
   if (nextRevision < 0) return `${existing.trimEnd()}\n\n${section}`;
   const preamble = existing.slice(0, nextRevision).trimEnd();
   const history = existing.slice(nextRevision).trimStart();
-  return `${preamble}\n\n${section}${history.endsWith("\n") ? history : `${history}\n`}`;
+  return `${preamble}\n\n${section}\n${history.endsWith("\n") ? history : `${history}\n`}`;
 }

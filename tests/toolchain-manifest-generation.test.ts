@@ -75,4 +75,5 @@ test("toolchain changelog prepends a revision only once", () => {
 
   assert.equal((second.match(/## 20260710\.3/g) ?? []).length, 1);
   assert.match(second, /## 20260709\.1/);
+  assert.match(second, /\n\n## 20260709\.1/);
 });
