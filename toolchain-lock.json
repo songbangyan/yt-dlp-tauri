@@ -1,0 +1,326 @@
+{
+  "schemaVersion": 1,
+  "targets": [
+    "macos-arm64",
+    "macos-x64",
+    "win-x64"
+  ],
+  "sources": [
+    {
+      "id": "deno",
+      "adapter": "github-release",
+      "selection": "latest-stable",
+      "repository": "denoland/deno",
+      "version": "v2.9.2",
+      "assets": [
+        {
+          "target": "macos-arm64",
+          "releaseId": 350916208,
+          "releaseTag": "v2.9.2",
+          "releasePublishedAtUtc": "2026-07-08T14:36:21Z",
+          "releaseUrl": "https://github.com/denoland/deno/releases/tag/v2.9.2",
+          "assetId": 470275352,
+          "assetName": "deno-aarch64-apple-darwin.zip",
+          "sourceUrl": "https://github.com/denoland/deno/releases/download/v2.9.2/deno-aarch64-apple-darwin.zip",
+          "kind": "zip",
+          "size": 37981362,
+          "sha256": "687ae485168ba73a4f1ee3a954eb4f077eca82f2fefd236a6a83a3889287876c",
+          "members": [
+            {
+              "tool": "deno",
+              "path": "Tools/macos-arm64/deno/deno",
+              "size": 82664416,
+              "sha256": "218ab752ae8f64f0a7822af710886488f15169fdae153a3aada4861f9635b266",
+              "licenseNotes": "Deno is distributed under the MIT license and provides the JavaScript runtime for yt-dlp EJS support.",
+              "archivePathSuffix": "deno",
+              "archivePath": "deno"
+            }
+          ]
+        },
+        {
+          "target": "macos-x64",
+          "releaseId": 350916208,
+          "releaseTag": "v2.9.2",
+          "releasePublishedAtUtc": "2026-07-08T14:36:21Z",
+          "releaseUrl": "https://github.com/denoland/deno/releases/tag/v2.9.2",
+          "assetId": 470283817,
+          "assetName": "deno-x86_64-apple-darwin.zip",
+          "sourceUrl": "https://github.com/denoland/deno/releases/download/v2.9.2/deno-x86_64-apple-darwin.zip",
+          "kind": "zip",
+          "size": 42336919,
+          "sha256": "c953379e5a85a0a30e99aa51b807633e380e809a1181f53e4904d5fa73785bff",
+          "members": [
+            {
+              "tool": "deno",
+              "path": "Tools/macos-x64/deno/deno",
+              "size": 99376128,
+              "sha256": "201651c6e72bd0df2dbe994b4f8ca0f935631e08c27290a3a92342e02ad0e865",
+              "licenseNotes": "Deno is distributed under the MIT license and provides the JavaScript runtime for yt-dlp EJS support.",
+              "archivePathSuffix": "deno",
+              "archivePath": "deno"
+            }
+          ]
+        },
+        {
+          "target": "win-x64",
+          "releaseId": 350916208,
+          "releaseTag": "v2.9.2",
+          "releasePublishedAtUtc": "2026-07-08T14:36:21Z",
+          "releaseUrl": "https://github.com/denoland/deno/releases/tag/v2.9.2",
+          "assetId": 470252608,
+          "assetName": "deno-x86_64-pc-windows-msvc.zip",
+          "sourceUrl": "https://github.com/denoland/deno/releases/download/v2.9.2/deno-x86_64-pc-windows-msvc.zip",
+          "kind": "zip",
+          "size": 42721120,
+          "sha256": "5fe194d26ac5ef77fcc5288c2c438c7a0465f3b6180440ebf04092714bf2dcdf",
+          "members": [
+            {
+              "tool": "deno",
+              "path": "Tools/win-x64/deno/deno.exe",
+              "size": 99115808,
+              "sha256": "a5270c2bb75a2ec12fef53185730327267d9e9fe6be6a962c5d1d5a050f93c88",
+              "licenseNotes": "Deno is distributed under the MIT license and provides the JavaScript runtime for yt-dlp EJS support.",
+              "archivePathSuffix": "deno.exe",
+              "archivePath": "deno.exe"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ffmpeg-macos-arm64",
+      "adapter": "redirect-release",
+      "selection": "latest-redirect",
+      "version": "8.1.2",
+      "assets": [
+        {
+          "target": "macos-arm64",
+          "releaseId": null,
+          "releaseTag": "8.1.2",
+          "releasePublishedAtUtc": null,
+          "releaseUrl": null,
+          "assetId": null,
+          "assetName": "ffmpeg.zip",
+          "sourceUrl": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffmpeg.zip",
+          "checksumUrl": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffmpeg.zip.sha256",
+          "kind": "zip",
+          "size": 28196358,
+          "sha256": "ef1aa60006c7b77ce170c1608c08d8e4ba1c30c5746f2ac986ded932d0ac2c3c",
+          "members": [
+            {
+              "tool": "ffmpeg",
+              "path": "Tools/macos-arm64/ffmpeg/bin/ffmpeg",
+              "size": 65637248,
+              "sha256": "eaf91238e104dd0e262bc6510e25061855cc99a6955a721b0ac99660d58c473d",
+              "licenseNotes": "Static release build for macOS Apple Silicon from Martin Riedl's FFmpeg build server.",
+              "archivePathSuffix": "ffmpeg",
+              "archivePath": "ffmpeg"
+            }
+          ]
+        },
+        {
+          "target": "macos-arm64",
+          "releaseId": null,
+          "releaseTag": "8.1.2",
+          "releasePublishedAtUtc": null,
+          "releaseUrl": null,
+          "assetId": null,
+          "assetName": "ffprobe.zip",
+          "sourceUrl": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffprobe.zip",
+          "checksumUrl": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffprobe.zip.sha256",
+          "kind": "zip",
+          "size": 28118222,
+          "sha256": "c39787f4af7a3932502d2d48db6f6feaaa836b48a73ef78c32cc3285df61dfaf",
+          "members": [
+            {
+              "tool": "ffprobe",
+              "path": "Tools/macos-arm64/ffmpeg/bin/ffprobe",
+              "size": 65445840,
+              "sha256": "ed9dc5871914b466b96b402c9ec0ba68ce4f836e72faa464b1b4e279835bd4a6",
+              "licenseNotes": "Static release build for macOS Apple Silicon from Martin Riedl's FFmpeg build server.",
+              "archivePathSuffix": "ffprobe",
+              "archivePath": "ffprobe"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ffmpeg-macos-x64",
+      "adapter": "redirect-release",
+      "selection": "latest-redirect",
+      "version": "8.1.2",
+      "assets": [
+        {
+          "target": "macos-x64",
+          "releaseId": null,
+          "releaseTag": "8.1.2",
+          "releasePublishedAtUtc": null,
+          "releaseUrl": null,
+          "assetId": null,
+          "assetName": "ffmpeg.zip",
+          "sourceUrl": "https://ffmpeg.martin-riedl.de/download/macos/amd64/1783018342_8.1.2/ffmpeg.zip",
+          "checksumUrl": "https://ffmpeg.martin-riedl.de/download/macos/amd64/1783018342_8.1.2/ffmpeg.zip.sha256",
+          "kind": "zip",
+          "size": 33586778,
+          "sha256": "a52ef43883f44c219766d4b3bdde4e635b35465d0b704c01c3a0566b59775df9",
+          "members": [
+            {
+              "tool": "ffmpeg",
+              "path": "Tools/macos-x64/ffmpeg/bin/ffmpeg",
+              "size": 93980912,
+              "sha256": "1ca59dda73668c59898a0b305afd8a88817a989187f222ec62d64e775d614d23",
+              "licenseNotes": "Static release build for macOS Intel from Martin Riedl's FFmpeg build server.",
+              "archivePathSuffix": "ffmpeg",
+              "archivePath": "ffmpeg"
+            }
+          ]
+        },
+        {
+          "target": "macos-x64",
+          "releaseId": null,
+          "releaseTag": "8.1.2",
+          "releasePublishedAtUtc": null,
+          "releaseUrl": null,
+          "assetId": null,
+          "assetName": "ffprobe.zip",
+          "sourceUrl": "https://ffmpeg.martin-riedl.de/download/macos/amd64/1783018342_8.1.2/ffprobe.zip",
+          "checksumUrl": "https://ffmpeg.martin-riedl.de/download/macos/amd64/1783018342_8.1.2/ffprobe.zip.sha256",
+          "kind": "zip",
+          "size": 33477267,
+          "sha256": "5408ca588c8c72b0dde3afe676d0a7acf25ef97e55ae6eba5c7bede1cda42695",
+          "members": [
+            {
+              "tool": "ffprobe",
+              "path": "Tools/macos-x64/ffmpeg/bin/ffprobe",
+              "size": 93772560,
+              "sha256": "bdb6aff0f1f414382effd97040f7862dc85e67996ac296cb4288beed0e06498f",
+              "licenseNotes": "Static release build for macOS Intel from Martin Riedl's FFmpeg build server.",
+              "archivePathSuffix": "ffprobe",
+              "archivePath": "ffprobe"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ffmpeg-windows",
+      "adapter": "github-release",
+      "selection": "previous-complete-month",
+      "repository": "yt-dlp/FFmpeg-Builds",
+      "version": "autobuild-2026-06-30-16-38",
+      "assets": [
+        {
+          "target": "win-x64",
+          "releaseId": 346969279,
+          "releaseTag": "autobuild-2026-06-30-16-38",
+          "releasePublishedAtUtc": "2026-06-30T16:38:32Z",
+          "releaseUrl": "https://github.com/yt-dlp/FFmpeg-Builds/releases/tag/autobuild-2026-06-30-16-38",
+          "assetId": 462330428,
+          "assetName": "ffmpeg-N-125365-g9a01c1cb6a-win64-gpl.zip",
+          "sourceUrl": "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-06-30-16-38/ffmpeg-N-125365-g9a01c1cb6a-win64-gpl.zip",
+          "kind": "zip",
+          "size": 167300768,
+          "sha256": "99502f28cb80ab012746e1545463abe061375072c81f500ac5286da11beb00f7",
+          "members": [
+            {
+              "tool": "ffmpeg",
+              "path": "Tools/win-x64/ffmpeg/bin/ffmpeg.exe",
+              "size": 143315456,
+              "sha256": "b2663834d9162f6ee431e7d864d8afd7ac385ec289de70463af67beab6f2257e",
+              "licenseNotes": "GPL build recommended by yt-dlp; redistribution requires the applicable GPL notices and corresponding-source availability.",
+              "archivePathSuffix": "bin/ffmpeg.exe",
+              "archivePath": "ffmpeg-N-125365-g9a01c1cb6a-win64-gpl/bin/ffmpeg.exe"
+            },
+            {
+              "tool": "ffprobe",
+              "path": "Tools/win-x64/ffmpeg/bin/ffprobe.exe",
+              "size": 143109632,
+              "sha256": "3a3525df7f7722e3131a2e0a4c22063f4b2ae50e25a3a2008cf1f7b9f3804aaf",
+              "licenseNotes": "Distributed from the same GPL FFmpeg build as ffmpeg.exe.",
+              "archivePathSuffix": "bin/ffprobe.exe",
+              "archivePath": "ffmpeg-N-125365-g9a01c1cb6a-win64-gpl/bin/ffprobe.exe"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "yt-dlp",
+      "adapter": "github-release",
+      "selection": "latest-stable",
+      "repository": "yt-dlp/yt-dlp",
+      "version": "2026.07.04",
+      "assets": [
+        {
+          "target": "macos-arm64",
+          "releaseId": 349050911,
+          "releaseTag": "2026.07.04",
+          "releasePublishedAtUtc": "2026-07-04T22:41:44Z",
+          "releaseUrl": "https://github.com/yt-dlp/yt-dlp/releases/tag/2026.07.04",
+          "assetId": 466665355,
+          "assetName": "yt-dlp_macos",
+          "sourceUrl": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp_macos",
+          "kind": "file",
+          "size": 38256544,
+          "sha256": "498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b",
+          "members": [
+            {
+              "tool": "yt-dlp",
+              "path": "Tools/macos-arm64/yt-dlp/yt-dlp",
+              "size": 38256544,
+              "sha256": "498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b",
+              "licenseNotes": "Official macOS standalone executable; the combined PyInstaller work is GPLv3+."
+            }
+          ]
+        },
+        {
+          "target": "macos-x64",
+          "releaseId": 349050911,
+          "releaseTag": "2026.07.04",
+          "releasePublishedAtUtc": "2026-07-04T22:41:44Z",
+          "releaseUrl": "https://github.com/yt-dlp/yt-dlp/releases/tag/2026.07.04",
+          "assetId": 466665355,
+          "assetName": "yt-dlp_macos",
+          "sourceUrl": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp_macos",
+          "kind": "file",
+          "size": 38256544,
+          "sha256": "498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b",
+          "members": [
+            {
+              "tool": "yt-dlp",
+              "path": "Tools/macos-x64/yt-dlp/yt-dlp",
+              "size": 38256544,
+              "sha256": "498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b",
+              "licenseNotes": "Official macOS standalone executable; the combined PyInstaller work is GPLv3+."
+            }
+          ]
+        },
+        {
+          "target": "win-x64",
+          "releaseId": 349050911,
+          "releaseTag": "2026.07.04",
+          "releasePublishedAtUtc": "2026-07-04T22:41:44Z",
+          "releaseUrl": "https://github.com/yt-dlp/yt-dlp/releases/tag/2026.07.04",
+          "assetId": 466665334,
+          "assetName": "yt-dlp.exe",
+          "sourceUrl": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp.exe",
+          "kind": "file",
+          "size": 18226085,
+          "sha256": "52fe3c26dcf71fbdc85b528589020bb0b8e383155cfa81b64dd447bbe35e24b8",
+          "members": [
+            {
+              "tool": "yt-dlp",
+              "path": "Tools/win-x64/yt-dlp/yt-dlp.exe",
+              "size": 18226085,
+              "sha256": "52fe3c26dcf71fbdc85b528589020bb0b8e383155cfa81b64dd447bbe35e24b8",
+              "licenseNotes": "Official Windows standalone executable; the combined PyInstaller work is GPLv3+."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "revision": "20260711.1",
+  "generatedAtUtc": "2026-07-11T11:51:15.615Z"
+}

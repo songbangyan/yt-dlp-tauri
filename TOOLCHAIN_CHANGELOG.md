@@ -2,6 +2,14 @@
 
 Tool updates are published independently from application releases
 
+## 20260711.1 - 2026-07-11
+
+- `deno`: `2.7.14` -> `2.9.2`
+- `ffmpeg-macos-arm64`: `8.1.1` -> `8.1.2`
+- `ffmpeg-macos-x64`: `8.1.1` -> `8.1.2`
+- `ffmpeg-windows`: `autobuild-2026-06-22-18-32` -> `autobuild-2026-06-30-16-38`
+- `yt-dlp`: retained `2026.07.04`
+
 ## 20260706.1 - 2026-07-06
 
 - `yt-dlp`: `2026.07.04`

@@ -47,6 +47,14 @@ test("manifest generation uses extracted hashes and fixed source URLs", () => {
   assert.equal(windowsFfmpeg.archivePathSuffix, "bin/ffmpeg.exe");
 });
 
+test("production manifest is generated from the production lock", () => {
+  const policy = JSON.parse(readFileSync("toolchain-policy.json", "utf8"));
+  const productionLock = JSON.parse(readFileSync("toolchain-lock.json", "utf8"));
+  const manifest = JSON.parse(readFileSync("src-tauri/tools-manifest.json", "utf8"));
+
+  assert.deepEqual(manifest, generateManifest(policy, productionLock));
+});
+
 test("toolchain changelog records one revision without app release notes", () => {
   const previous = structuredClone(lock);
   previous.revision = "20260709.1";
