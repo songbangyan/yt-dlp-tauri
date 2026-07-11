@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "revision": "20260710.3",
+  "generatedAtUtc": "2026-07-10T04:00:00.000Z",
+  "targets": [
+    "macos-arm64",
+    "win-x64"
+  ],
+  "sources": [
+    {
+      "id": "ffmpeg-macos-arm64",
+      "adapter": "redirect-release",
+      "selection": "latest-redirect",
+      "version": "8.1.2",
+      "assets": [
+        {
+          "target": "macos-arm64",
+          "releaseId": null,
+          "releaseTag": "8.1.2",
+          "releasePublishedAtUtc": null,
+          "releaseUrl": null,
+          "assetId": null,
+          "assetName": "ffmpeg.zip",
+          "sourceUrl": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffmpeg.zip",
+          "checksumUrl": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffmpeg.zip.sha256",
+          "kind": "zip",
+          "size": 10,
+          "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "members": [
+            {
+              "tool": "ffmpeg",
+              "path": "Tools/macos-arm64/ffmpeg/bin/ffmpeg",
+              "archivePathSuffix": "ffmpeg",
+              "archivePath": "ffmpeg",
+              "size": 4,
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "licenseNotes": "macOS FFmpeg test license"
+            }
+          ]
+        },
+        {
+          "target": "macos-arm64",
+          "releaseId": null,
+          "releaseTag": "8.1.2",
+          "releasePublishedAtUtc": null,
+          "releaseUrl": null,
+          "assetId": null,
+          "assetName": "ffprobe.zip",
+          "sourceUrl": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffprobe.zip",
+          "checksumUrl": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffprobe.zip.sha256",
+          "kind": "zip",
+          "size": 11,
+          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "members": [
+            {
+              "tool": "ffprobe",
+              "path": "Tools/macos-arm64/ffmpeg/bin/ffprobe",
+              "archivePathSuffix": "ffprobe",
+              "archivePath": "ffprobe",
+              "size": 5,
+              "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+              "licenseNotes": "macOS FFprobe test license"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ffmpeg-windows",
+      "adapter": "github-release",
+      "selection": "previous-complete-month",
+      "repository": "yt-dlp/FFmpeg-Builds",
+      "version": "autobuild-2026-06-30-16-38",
+      "assets": [
+        {
+          "target": "win-x64",
+          "releaseId": 30,
+          "releaseTag": "autobuild-2026-06-30-16-38",
+          "releasePublishedAtUtc": "2026-06-30T16:38:32Z",
+          "releaseUrl": "https://github.com/yt-dlp/FFmpeg-Builds/releases/tag/autobuild-2026-06-30-16-38",
+          "assetId": 300,
+          "assetName": "ffmpeg-N-125200-gabcdef1234-win64-gpl.zip",
+          "sourceUrl": "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-06-30-16-38/ffmpeg-N-125200-gabcdef1234-win64-gpl.zip",
+          "kind": "zip",
+          "size": 30,
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "members": [
+            {
+              "tool": "ffmpeg",
+              "path": "Tools/win-x64/ffmpeg/bin/ffmpeg.exe",
+              "archivePathSuffix": "bin/ffmpeg.exe",
+              "archivePath": "ffmpeg-build/bin/ffmpeg.exe",
+              "size": 12,
+              "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "licenseNotes": "Windows FFmpeg test license"
+            },
+            {
+              "tool": "ffprobe",
+              "path": "Tools/win-x64/ffmpeg/bin/ffprobe.exe",
+              "archivePathSuffix": "bin/ffprobe.exe",
+              "archivePath": "ffmpeg-build/bin/ffprobe.exe",
+              "size": 13,
+              "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "licenseNotes": "Windows FFprobe test license"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "yt-dlp",
+      "adapter": "github-release",
+      "selection": "latest-stable",
+      "repository": "yt-dlp/yt-dlp",
+      "version": "2026.07.04",
+      "assets": [
+        {
+          "target": "win-x64",
+          "releaseId": 10,
+          "releaseTag": "2026.07.04",
+          "releasePublishedAtUtc": "2026-07-04T10:05:00Z",
+          "releaseUrl": "https://github.com/yt-dlp/yt-dlp/releases/tag/2026.07.04",
+          "assetId": 100,
+          "assetName": "yt-dlp.exe",
+          "sourceUrl": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp.exe",
+          "kind": "file",
+          "size": 3,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "members": [
+            {
+              "tool": "yt-dlp",
+              "path": "Tools/win-x64/yt-dlp/yt-dlp.exe",
+              "size": 3,
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "licenseNotes": "yt-dlp test license"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
