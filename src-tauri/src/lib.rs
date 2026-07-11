@@ -1,26 +1,32 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeSet,
     env,
     ffi::OsStr,
     fs,
-    io::{BufRead, BufReader, Read, Write},
+    io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{Arc, Mutex},
     thread,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Emitter, Manager};
 
-const TOOLS_DIRECTORY: &str = "Tools";
+pub mod toolchain;
+
+use toolchain::{
+    build_tool_download_client, install_target, manifest_target, parse_manifest, probe_target,
+    require_tools, tool_names_for_target, tool_paths_for_root, tool_target_from,
+    InstallTargetRequest, ManifestTarget, ProgressReporter, ToolInstallProgress, ToolPaths,
+    ToolStatus, ToolsManifest, TOOLS_DIRECTORY,
+};
+
 const TOOLS_MANIFEST_FILE: &str = "tools-manifest.json";
 const LATEST_RELEASE_API_URL: &str =
     "https://api.github.com/repos/Chlience/yt-dlp-tauri/releases/latest";
 const GITHUB_PROXY_URL_PREFIX: &str = "https://gh-proxy.com/";
-const TOOL_DOWNLOAD_MAX_ATTEMPTS: usize = 3;
 const PROGRESS_PREFIX: &str = "yt-dlp-tauri-progress:";
 const OUTPUT_PATH_PREFIX: &str = "yt-dlp-tauri-output:";
 const COOKIE_HEADER_EXPIRY: &str = "2147483647";
@@ -32,17 +38,6 @@ struct AppState {
     download_directory: String,
     tools_root: String,
     cookies_file: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-struct ToolStatus {
-    name: String,
-    relative_path: String,
-    full_path: String,
-    availability: String,
-    version: Option<String>,
-    expected_version: Option<String>,
-    error: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -82,73 +77,11 @@ struct DownloadProgress {
     raw: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-struct ToolInstallProgress {
-    percent: Option<f64>,
-    status: String,
-    tool: Option<String>,
-}
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct LatestToolManifestResult {
     status: String,
     manifest_json: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-struct ToolPaths {
-    root: PathBuf,
-    yt_dlp: PathBuf,
-    ffmpeg: PathBuf,
-    ffmpeg_dir: PathBuf,
-    ffprobe: PathBuf,
-    deno: PathBuf,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct ToolNames {
-    yt_dlp: &'static str,
-    ffmpeg: &'static str,
-    ffprobe: &'static str,
-    deno: &'static str,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ToolsManifest {
-    schema_version: u32,
-    retrieved_at_utc: Option<String>,
-    targets: Vec<ManifestTarget>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ManifestTarget {
-    target: String,
-    tools: Vec<ManifestTool>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ManifestTool {
-    name: String,
-    path: String,
-    source_url: String,
-    #[serde(rename = "version")]
-    version: Option<String>,
-    sha256: String,
-    kind: ManifestToolKind,
-    archive_path_suffix: Option<String>,
-    #[serde(rename = "licenseNotes")]
-    _license_notes: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-enum ManifestToolKind {
-    File,
-    Zip,
 }
 
 #[derive(Clone, Default)]
@@ -619,42 +552,7 @@ fn locate_tools(app: &AppHandle) -> Result<ToolPaths, String> {
             })
         });
 
-    Ok(ToolPaths {
-        yt_dlp: root.join("yt-dlp").join(names.yt_dlp),
-        ffmpeg: root.join("ffmpeg").join("bin").join(names.ffmpeg),
-        ffmpeg_dir: root.join("ffmpeg").join("bin"),
-        ffprobe: root.join("ffmpeg").join("bin").join(names.ffprobe),
-        deno: root.join("deno").join(names.deno),
-        root,
-    })
-}
-
-fn tool_target_from(os: &str, arch: &str) -> Option<&'static str> {
-    match (os, arch) {
-        ("windows", "x86_64") => Some("win-x64"),
-        ("windows", "aarch64") => Some("win-arm64"),
-        ("macos", "x86_64") => Some("macos-x64"),
-        ("macos", "aarch64") => Some("macos-arm64"),
-        _ => None,
-    }
-}
-
-fn tool_names_for_target(target: &str) -> Option<ToolNames> {
-    match target {
-        "win-x64" | "win-arm64" => Some(ToolNames {
-            yt_dlp: "yt-dlp.exe",
-            ffmpeg: "ffmpeg.exe",
-            ffprobe: "ffprobe.exe",
-            deno: "deno.exe",
-        }),
-        "macos-x64" | "macos-arm64" => Some(ToolNames {
-            yt_dlp: "yt-dlp",
-            ffmpeg: "ffmpeg",
-            ffprobe: "ffprobe",
-            deno: "deno",
-        }),
-        _ => None,
-    }
+    tool_paths_for_root(&root, &target)
 }
 
 fn current_tool_target() -> Result<String, String> {
@@ -691,11 +589,7 @@ fn manifest_target_from_json(json: &str, target: &str) -> Result<ManifestTarget,
 }
 
 fn manifest_from_json(json: &str) -> Result<ToolsManifest, String> {
-    let manifest: ToolsManifest = serde_json::from_str(json).map_err(to_string)?;
-    if manifest.schema_version < 2 {
-        return Err("tools-manifest.json schemaVersion must be 2 or newer.".to_string());
-    }
-    Ok(manifest)
+    parse_manifest(json)
 }
 
 fn fetch_latest_tool_manifest_blocking(
@@ -789,11 +683,7 @@ fn manifest_target_from_manifest(
     manifest: ToolsManifest,
     target: &str,
 ) -> Result<ManifestTarget, String> {
-    manifest
-        .targets
-        .into_iter()
-        .find(|item| item.target == target)
-        .ok_or_else(|| format!("No tool manifest target found for {target}."))
+    manifest_target(&manifest, target)
 }
 
 fn read_current_manifest(app: &AppHandle) -> Result<ToolsManifest, String> {
@@ -876,33 +766,29 @@ fn install_manifest_tools(
     active_manifest_json: Option<&str>,
 ) -> Result<Vec<ToolStatus>, String> {
     let root = writable_tools_root(target_name)?;
-    fs::create_dir_all(&root).map_err(to_string)?;
-
-    emit_tool_install_progress(
-        app,
-        ToolInstallProgress {
-            percent: Some(0.0),
-            status: format!("Installing toolchain for {target_name}"),
-            tool: None,
-        },
-    );
-
-    install_manifest_target(app, target, &root)?;
+    let temp_root = app_data_root()?.join("tool-downloads");
+    let reporter = TauriProgressReporter { app };
+    let paths = install_target(InstallTargetRequest {
+        target,
+        install_root: &root,
+        temp_root: &temp_root,
+        reporter: &reporter,
+    })?;
 
     if let Some(json) = active_manifest_json {
         save_active_tools_manifest(json)?;
     }
+    probe_target(&paths, target)
+}
 
-    emit_tool_install_progress(
-        app,
-        ToolInstallProgress {
-            percent: Some(100.0),
-            status: "Toolchain installed.".to_string(),
-            tool: None,
-        },
-    );
+struct TauriProgressReporter<'a> {
+    app: &'a AppHandle,
+}
 
-    probe_manifest_tools(app, target)
+impl ProgressReporter for TauriProgressReporter<'_> {
+    fn emit(&self, progress: ToolInstallProgress) {
+        emit_tool_install_progress(self.app, progress);
+    }
 }
 
 fn remove_managed_toolchain(root: &Path) -> Result<(), String> {
@@ -928,669 +814,12 @@ fn remove_managed_toolchain(root: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn install_manifest_target(
-    app: &AppHandle,
-    target: &ManifestTarget,
-    root: &Path,
-) -> Result<(), String> {
-    let mut zip_groups = Vec::<Vec<ManifestTool>>::new();
-
-    for tool in &target.tools {
-        match tool.kind {
-            ManifestToolKind::File => {
-                install_file_tool(app, root, tool)
-                    .map_err(|error| format!("Failed to install {}. {error}", tool.name))?;
-            }
-            ManifestToolKind::Zip => {
-                if let Some(group) = zip_groups.iter_mut().find(|group| {
-                    group
-                        .first()
-                        .map(|first| first.source_url == tool.source_url)
-                        .unwrap_or(false)
-                }) {
-                    group.push(tool.clone());
-                } else {
-                    zip_groups.push(vec![tool.clone()]);
-                }
-            }
-        }
-    }
-
-    for tools in &zip_groups {
-        let group_label = zip_group_label(tools);
-        install_zip_tools(app, root, tools)
-            .map_err(|error| format!("Failed to install {group_label}. {error}"))?;
-    }
-
-    for tool in &target.tools {
-        let path = root.join(relative_manifest_tool_path(tool)?);
-        if !path.exists() {
-            return Err(format!(
-                "Installed tool is missing after install: {}",
-                path.display()
-            ));
-        }
-        verify_sha256(&path, &tool.sha256)?;
-    }
-
-    Ok(())
-}
-
-fn install_file_tool(app: &AppHandle, root: &Path, tool: &ManifestTool) -> Result<(), String> {
-    let destination = root.join(relative_manifest_tool_path(tool)?);
-    download_to_destination(app, tool, &destination)?;
-    emit_tool_install_progress(
-        app,
-        ToolInstallProgress {
-            percent: None,
-            status: format!("Verifying {}", tool.name),
-            tool: Some(tool.name.clone()),
-        },
-    );
-    verify_sha256(&destination, &tool.sha256)?;
-    mark_executable(&destination)?;
-    Ok(())
-}
-
-fn install_zip_tools(app: &AppHandle, root: &Path, tools: &[ManifestTool]) -> Result<(), String> {
-    let first = tools
-        .first()
-        .ok_or_else(|| "Zip tool group cannot be empty.".to_string())?;
-    let temp_root = app_data_root()?.join("tool-downloads");
-    fs::create_dir_all(&temp_root).map_err(to_string)?;
-    let zip_path = temp_root.join(format!(
-        "{}-{}.zip",
-        sanitize_file_name(&first.name),
-        unix_timestamp()
-    ));
-
-    download_source_to_file(
-        app,
-        &first.source_url,
-        &zip_path,
-        &format!("Downloading {}", zip_group_label(tools)),
-        first.name.as_str(),
-    )?;
-
-    let extract_root = temp_root.join(format!(
-        "extract-{}-{}",
-        sanitize_file_name(&first.name),
-        unix_timestamp()
-    ));
-    fs::create_dir_all(&extract_root).map_err(to_string)?;
-    extract_zip_archive(&zip_path, &extract_root)?;
-
-    for tool in tools {
-        emit_tool_install_progress(
-            app,
-            ToolInstallProgress {
-                percent: None,
-                status: format!("Extracting {}", tool.name),
-                tool: Some(tool.name.clone()),
-            },
-        );
-        extract_tool_from_directory(&extract_root, root, tool)?;
-        let destination = root.join(relative_manifest_tool_path(tool)?);
-        verify_sha256(&destination, &tool.sha256)?;
-        mark_executable(&destination)?;
-    }
-
-    let _ = fs::remove_file(zip_path);
-    let _ = fs::remove_dir_all(extract_root);
-    Ok(())
-}
-
-fn download_to_destination(
-    app: &AppHandle,
-    tool: &ManifestTool,
-    destination: &Path,
-) -> Result<(), String> {
-    let temp = destination.with_extension("download");
-    download_source_to_file(
-        app,
-        &tool.source_url,
-        &temp,
-        &format!("Downloading {}", tool.name),
-        tool.name.as_str(),
-    )?;
-    if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent).map_err(|error| {
-            format!(
-                "Failed to prepare directory for {} at {}: {error}",
-                tool.name,
-                parent.display()
-            )
-        })?;
-    }
-    if destination.exists() {
-        fs::remove_file(destination).map_err(|error| {
-            format!(
-                "Failed to replace existing {} at {}: {error}",
-                tool.name,
-                destination.display()
-            )
-        })?;
-    }
-    fs::rename(&temp, destination).map_err(|error| {
-        format!(
-            "Failed to move downloaded {} from {} to {}: {error}",
-            tool.name,
-            temp.display(),
-            destination.display()
-        )
-    })?;
-    Ok(())
-}
-
-fn download_source_to_file(
-    app: &AppHandle,
-    source_url: &str,
-    destination: &Path,
-    status: &str,
-    tool_name: &str,
-) -> Result<(), String> {
-    if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent).map_err(|error| {
-            format!(
-                "Failed to prepare download directory {}: {error}",
-                parent.display()
-            )
-        })?;
-    }
-    emit_tool_install_progress(
-        app,
-        ToolInstallProgress {
-            percent: None,
-            status: status.to_string(),
-            tool: Some(tool_name.to_string()),
-        },
-    );
-
-    let client = build_tool_download_client(tool_name)?;
-    for attempt in 1..=TOOL_DOWNLOAD_MAX_ATTEMPTS {
-        match download_source_to_file_once(app, &client, source_url, destination, status, tool_name)
-        {
-            Ok(()) => {
-                emit_tool_install_progress(
-                    app,
-                    ToolInstallProgress {
-                        percent: Some(100.0),
-                        status: format!("Downloaded {tool_name}"),
-                        tool: Some(tool_name.to_string()),
-                    },
-                );
-                return Ok(());
-            }
-            Err(error) if should_retry_tool_download(&error, attempt) => {
-                remove_partial_download(destination);
-                emit_tool_install_progress(
-                    app,
-                    ToolInstallProgress {
-                        percent: None,
-                        status: format!(
-                            "Retrying {tool_name} download ({}/{})",
-                            attempt + 1,
-                            TOOL_DOWNLOAD_MAX_ATTEMPTS
-                        ),
-                        tool: Some(tool_name.to_string()),
-                    },
-                );
-            }
-            Err(error) => {
-                remove_partial_download(destination);
-                return Err(error.message);
-            }
-        }
-    }
-
-    Err(format!("Failed to download {tool_name} from {source_url}."))
-}
-
-fn build_tool_download_client(tool_name: &str) -> Result<reqwest::blocking::Client, String> {
-    install_rustls_crypto_provider();
-
-    reqwest::blocking::Client::builder()
-        .connect_timeout(Duration::from_secs(30))
-        .timeout(Duration::from_secs(30 * 60))
-        .user_agent(format!("yt-dlp-tauri/{}", env!("CARGO_PKG_VERSION")))
-        .build()
-        .map_err(|error| format!("Failed to prepare HTTP client for {tool_name}: {error}"))
-}
-
-fn download_source_to_file_once(
-    app: &AppHandle,
-    client: &reqwest::blocking::Client,
-    source_url: &str,
-    destination: &Path,
-    status: &str,
-    tool_name: &str,
-) -> Result<(), ToolDownloadError> {
-    let mut response = client.get(source_url).send().map_err(|error| {
-        ToolDownloadError::retryable(format!(
-            "Failed to download {tool_name} from {source_url}: {error}"
-        ))
-    })?;
-    let status_code = response.status();
-    if !status_code.is_success() {
-        let message = format!("Failed to download {tool_name} from {source_url}: {status_code}");
-        return if is_retryable_http_status(status_code.as_u16()) {
-            Err(ToolDownloadError::retryable(message))
-        } else {
-            Err(ToolDownloadError::fatal(message))
-        };
-    }
-
-    let total_bytes = response.content_length();
-    let mut file = fs::File::create(destination).map_err(|error| {
-        ToolDownloadError::fatal(format!(
-            "Failed to create download file for {tool_name} at {}: {error}",
-            destination.display()
-        ))
-    })?;
-    let mut buffer = [0_u8; 64 * 1024];
-    let mut downloaded_bytes = 0_u64;
-    let mut last_display_percent = None;
-    if let Some(percent) = download_progress_percent(0, total_bytes) {
-        emit_tool_install_progress(
-            app,
-            ToolInstallProgress {
-                percent: Some(percent),
-                status: status.to_string(),
-                tool: Some(tool_name.to_string()),
-            },
-        );
-        last_display_percent = Some(display_percent_bucket(percent));
-    }
-
-    loop {
-        let byte_count = response.read(&mut buffer).map_err(|error| {
-            ToolDownloadError::retryable(format!(
-                "Failed to read HTTP response for {tool_name}: {error}"
-            ))
-        })?;
-        if byte_count == 0 {
-            break;
-        }
-
-        file.write_all(&buffer[..byte_count]).map_err(|error| {
-            ToolDownloadError::fatal(format!(
-                "Failed to write downloaded {tool_name} to {}: {error}",
-                destination.display()
-            ))
-        })?;
-        downloaded_bytes += byte_count as u64;
-
-        if let Some(percent) = download_progress_percent(downloaded_bytes, total_bytes) {
-            let display_percent = display_percent_bucket(percent);
-            if Some(display_percent) != last_display_percent {
-                emit_tool_install_progress(
-                    app,
-                    ToolInstallProgress {
-                        percent: Some(percent),
-                        status: status.to_string(),
-                        tool: Some(tool_name.to_string()),
-                    },
-                );
-                last_display_percent = Some(display_percent);
-            }
-        }
-    }
-    file.flush().map_err(|error| {
-        ToolDownloadError::fatal(format!(
-            "Failed to flush downloaded {tool_name} to {}: {error}",
-            destination.display()
-        ))
-    })?;
-    Ok(())
-}
-
-#[derive(Debug)]
-struct ToolDownloadError {
-    message: String,
-    retryable: bool,
-}
-
-impl ToolDownloadError {
-    fn retryable(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            retryable: true,
-        }
-    }
-
-    fn fatal(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            retryable: false,
-        }
-    }
-}
-
-fn should_retry_tool_download(error: &ToolDownloadError, attempt: usize) -> bool {
-    error.retryable && attempt < TOOL_DOWNLOAD_MAX_ATTEMPTS
-}
-
-fn is_retryable_http_status(status: u16) -> bool {
-    status == 408 || status == 429 || status >= 500
-}
-
-fn install_rustls_crypto_provider() {
-    let _ = rustls::crypto::ring::default_provider().install_default();
-}
-
-fn download_progress_percent(downloaded_bytes: u64, total_bytes: Option<u64>) -> Option<f64> {
-    let total_bytes = total_bytes?;
-    if total_bytes == 0 {
-        return None;
-    }
-
-    let ratio = (downloaded_bytes as f64 / total_bytes as f64).clamp(0.0, 1.0);
-    Some(ratio * 100.0)
-}
-
-fn display_percent_bucket(percent: f64) -> i64 {
-    percent.round() as i64
-}
-
-fn remove_partial_download(path: &Path) {
-    let _ = fs::remove_file(path);
-}
-
-fn extract_zip_archive(zip_path: &Path, destination: &Path) -> Result<(), String> {
-    let mut command = if cfg!(target_os = "windows") {
-        let mut command = background_command("powershell");
-        command
-            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"])
-            .arg(format!(
-                "Expand-Archive -Force -LiteralPath '{}' -DestinationPath '{}'",
-                powershell_escape(zip_path),
-                powershell_escape(destination)
-            ));
-        command
-    } else {
-        let mut command = background_command("unzip");
-        command
-            .args(["-q", "-o"])
-            .arg(zip_path)
-            .arg("-d")
-            .arg(destination);
-        command
-    };
-    let output = command.output().map_err(|error| {
-        format!(
-            "Failed to start archive extractor for {}: {error}",
-            zip_path.display()
-        )
-    })?;
-
-    if output.status.success() {
-        Ok(())
-    } else {
-        Err(process_failure_message(
-            &format!(
-                "Failed to extract {} to {}.",
-                zip_path.display(),
-                destination.display()
-            ),
-            output.status.code(),
-            &output.stderr,
-            &output.stdout,
-        ))
-    }
-}
-
-fn extract_tool_from_directory(
-    extract_root: &Path,
-    tools_root: &Path,
-    tool: &ManifestTool,
-) -> Result<(), String> {
-    let suffix = tool
-        .archive_path_suffix
-        .as_deref()
-        .ok_or_else(|| format!("{} is missing archivePathSuffix.", tool.name))?
-        .replace('\\', "/");
-    let source = find_file_by_normalized_suffix(extract_root, &suffix)?.ok_or_else(|| {
-        format!(
-            "Unable to find {} at {} in extracted archive {}.",
-            tool.name,
-            suffix,
-            extract_root.display()
-        )
-    })?;
-    let destination = tools_root.join(relative_manifest_tool_path(tool)?);
-    if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent).map_err(|error| {
-            format!(
-                "Failed to prepare directory for {} at {}: {error}",
-                tool.name,
-                parent.display()
-            )
-        })?;
-    }
-    fs::copy(&source, &destination).map_err(|error| {
-        format!(
-            "Failed to copy {} from {} to {}: {error}",
-            tool.name,
-            source.display(),
-            destination.display()
-        )
-    })?;
-    Ok(())
-}
-
-fn find_file_by_normalized_suffix(root: &Path, suffix: &str) -> Result<Option<PathBuf>, String> {
-    let mut stack = vec![root.to_path_buf()];
-    while let Some(path) = stack.pop() {
-        for entry in fs::read_dir(path).map_err(to_string)? {
-            let entry = entry.map_err(to_string)?;
-            let path = entry.path();
-            if path.is_dir() {
-                stack.push(path);
-            } else {
-                let normalized = path.to_string_lossy().replace('\\', "/");
-                if normalized.ends_with(suffix) {
-                    return Ok(Some(path));
-                }
-            }
-        }
-    }
-    Ok(None)
-}
-
-fn relative_manifest_tool_path(tool: &ManifestTool) -> Result<PathBuf, String> {
-    let normalized = tool.path.replace('\\', "/");
-    let prefix = format!("{TOOLS_DIRECTORY}/");
-    let relative = normalized
-        .strip_prefix(&prefix)
-        .and_then(|value| value.split_once('/').map(|(_, rest)| rest))
-        .ok_or_else(|| format!("Invalid tool path in manifest: {}", tool.path))?;
-    Ok(PathBuf::from(relative))
-}
-
-fn verify_sha256(path: &Path, expected: &str) -> Result<(), String> {
-    let actual = sha256_file(path)?;
-    if actual.eq_ignore_ascii_case(expected) {
-        Ok(())
-    } else {
-        Err(format!(
-            "SHA-256 mismatch for {}. Expected {}, got {}.",
-            path.display(),
-            expected,
-            actual
-        ))
-    }
-}
-
-fn sha256_file(path: &Path) -> Result<String, String> {
-    let mut file = fs::File::open(path).map_err(to_string)?;
-    let mut hasher = Sha256::new();
-    let mut buffer = [0_u8; 1024 * 64];
-    loop {
-        let count = file.read(&mut buffer).map_err(to_string)?;
-        if count == 0 {
-            break;
-        }
-        hasher.update(&buffer[..count]);
-    }
-    Ok(format!("{:x}", hasher.finalize()))
-}
-
-fn sanitize_file_name(value: &str) -> String {
-    value
-        .chars()
-        .map(|character| {
-            if character.is_ascii_alphanumeric() || character == '-' || character == '_' {
-                character
-            } else {
-                '-'
-            }
-        })
-        .collect()
-}
-
-fn zip_group_label(tools: &[ManifestTool]) -> String {
-    tools
-        .iter()
-        .map(|tool| tool.name.as_str())
-        .collect::<Vec<_>>()
-        .join(" / ")
-}
-
-fn powershell_escape(path: &Path) -> String {
-    path.display().to_string().replace('\'', "''")
-}
-
-#[cfg(unix)]
-fn mark_executable(path: &Path) -> Result<(), String> {
-    use std::os::unix::fs::PermissionsExt;
-
-    let mut permissions = fs::metadata(path).map_err(to_string)?.permissions();
-    permissions.set_mode(0o755);
-    fs::set_permissions(path, permissions).map_err(to_string)
-}
-
-#[cfg(not(unix))]
-fn mark_executable(_path: &Path) -> Result<(), String> {
-    Ok(())
-}
-
 fn probe_manifest_tools(
     app: &AppHandle,
     target: &ManifestTarget,
 ) -> Result<Vec<ToolStatus>, String> {
     let tools = locate_tools(app)?;
-    target
-        .tools
-        .iter()
-        .map(|tool| probe_manifest_tool(&tools.root, tool))
-        .collect()
-}
-
-fn probe_manifest_tool(root: &Path, tool: &ManifestTool) -> Result<ToolStatus, String> {
-    let relative_path = relative_manifest_tool_path(tool)?;
-    let full_path = root.join(relative_path);
-    let mut status = probe_tool(
-        &tool.name,
-        &tool.path,
-        &full_path,
-        tool_version_args(&tool.name),
-    );
-    status.expected_version = tool.version.clone();
-
-    if status.availability == "available" {
-        let hash_matches = verify_sha256(&full_path, &tool.sha256).is_ok();
-        status.availability = availability_for_manifest_probe(&status.availability, hash_matches);
-        if !hash_matches {
-            status.error = Some("Installed tool does not match the pinned manifest.".to_string());
-        }
-    }
-
-    Ok(status)
-}
-
-fn tool_version_args(name: &str) -> &'static [&'static str] {
-    match name {
-        "ffmpeg" | "ffprobe" => &["-version"],
-        _ => &["--version"],
-    }
-}
-
-fn availability_for_manifest_probe(availability: &str, sha_matches: bool) -> String {
-    if availability == "available" && !sha_matches {
-        "outdated".to_string()
-    } else {
-        availability.to_string()
-    }
-}
-
-fn require_tools(tools: &ToolPaths) -> Result<(), String> {
-    for path in [&tools.yt_dlp, &tools.ffmpeg, &tools.ffprobe, &tools.deno] {
-        if !path.exists() {
-            return Err(format!("Missing bundled tool: {}", path.display()));
-        }
-    }
-    Ok(())
-}
-
-fn probe_tool(
-    name: &str,
-    relative_path: &str,
-    full_path: &Path,
-    version_args: &[&str],
-) -> ToolStatus {
-    if !full_path.exists() {
-        return ToolStatus {
-            name: name.to_string(),
-            relative_path: relative_path.to_string(),
-            full_path: full_path.display().to_string(),
-            availability: "missing".to_string(),
-            version: None,
-            expected_version: None,
-            error: Some("Bundled tool file is missing.".to_string()),
-        };
-    }
-
-    let mut command = background_command(full_path);
-    match command.args(version_args).output() {
-        Ok(output) if output.status.success() => ToolStatus {
-            name: name.to_string(),
-            relative_path: relative_path.to_string(),
-            full_path: full_path.display().to_string(),
-            availability: "available".to_string(),
-            version: first_line(&output.stdout),
-            expected_version: None,
-            error: None,
-        },
-        Ok(output) => ToolStatus {
-            name: name.to_string(),
-            relative_path: relative_path.to_string(),
-            full_path: full_path.display().to_string(),
-            availability: "cannot_execute".to_string(),
-            version: None,
-            expected_version: None,
-            error: Some(process_failure_message(
-                &format!(
-                    "{name} at {} failed to report a version.",
-                    full_path.display()
-                ),
-                output.status.code(),
-                &output.stderr,
-                &output.stdout,
-            )),
-        },
-        Err(error) => ToolStatus {
-            name: name.to_string(),
-            relative_path: relative_path.to_string(),
-            full_path: full_path.display().to_string(),
-            availability: "cannot_execute".to_string(),
-            version: None,
-            expected_version: None,
-            error: Some(format!(
-                "Failed to run {name} at {}: {error}",
-                full_path.display()
-            )),
-        },
-    }
+    probe_target(&tools, target)
 }
 
 fn parse_metadata_json(json: &str, fallback_url: &str) -> Result<VideoMetadata, String> {
@@ -2269,64 +1498,6 @@ mod tests {
     use std::collections::BTreeMap;
 
     #[test]
-    fn maps_supported_platform_arch_pairs_to_tool_targets() {
-        assert_eq!(tool_target_from("windows", "x86_64"), Some("win-x64"));
-        assert_eq!(tool_target_from("windows", "aarch64"), Some("win-arm64"));
-        assert_eq!(tool_target_from("macos", "x86_64"), Some("macos-x64"));
-        assert_eq!(tool_target_from("macos", "aarch64"), Some("macos-arm64"));
-        assert_eq!(tool_target_from("linux", "x86_64"), None);
-    }
-
-    #[test]
-    fn uses_platform_specific_tool_names() {
-        let windows_tools = tool_names_for_target("win-x64").expect("windows tool names");
-        assert_eq!(windows_tools.yt_dlp, "yt-dlp.exe");
-        assert_eq!(windows_tools.ffmpeg, "ffmpeg.exe");
-        assert_eq!(windows_tools.ffprobe, "ffprobe.exe");
-        assert_eq!(windows_tools.deno, "deno.exe");
-
-        let macos_tools = tool_names_for_target("macos-arm64").expect("macos tool names");
-        assert_eq!(macos_tools.yt_dlp, "yt-dlp");
-        assert_eq!(macos_tools.ffmpeg, "ffmpeg");
-        assert_eq!(macos_tools.ffprobe, "ffprobe");
-        assert_eq!(macos_tools.deno, "deno");
-
-        assert!(tool_names_for_target("linux-x64").is_none());
-    }
-
-    #[test]
-    fn selects_tools_for_current_manifest_target() {
-        let manifest = r#"
-        {
-          "schemaVersion": 2,
-          "targets": [
-            {
-              "target": "win-x64",
-              "tools": [
-                {
-                  "name": "yt-dlp",
-                  "path": "Tools/win-x64/yt-dlp/yt-dlp.exe",
-                  "sourceUrl": "https://example.test/yt-dlp.exe",
-                  "sha256": "abc",
-                  "kind": "file"
-                }
-              ]
-            },
-            {
-              "target": "win-arm64",
-              "tools": []
-            }
-          ]
-        }
-        "#;
-
-        let target = manifest_target_from_json(manifest, "win-x64").expect("target should parse");
-        assert_eq!(target.target, "win-x64");
-        assert_eq!(target.tools.len(), 1);
-        assert_eq!(target.tools[0].name, "yt-dlp");
-    }
-
-    #[test]
     fn production_manifest_uses_fixed_release_urls() {
         let manifest = include_str!("../tools-manifest.json");
         let manifest: ToolsManifest =
@@ -2393,11 +1564,13 @@ mod tests {
     fn prefers_newer_active_manifest_over_bundled_manifest() {
         let bundled = ToolsManifest {
             schema_version: 2,
+            revision: None,
             retrieved_at_utc: Some("2026-06-01T00:00:00Z".to_string()),
             targets: Vec::new(),
         };
         let active = ToolsManifest {
             schema_version: 2,
+            revision: None,
             retrieved_at_utc: Some("2026-06-23T00:00:00Z".to_string()),
             targets: Vec::new(),
         };
@@ -2414,11 +1587,13 @@ mod tests {
     fn keeps_newer_bundled_manifest_over_stale_active_manifest() {
         let bundled = ToolsManifest {
             schema_version: 2,
+            revision: None,
             retrieved_at_utc: Some("2026-06-23T00:00:00Z".to_string()),
             targets: Vec::new(),
         };
         let active = ToolsManifest {
             schema_version: 2,
+            revision: None,
             retrieved_at_utc: Some("2026-06-01T00:00:00Z".to_string()),
             targets: Vec::new(),
         };
@@ -2484,49 +1659,6 @@ mod tests {
             github_http_error_message(reqwest::StatusCode::NOT_FOUND, ""),
             "404 Not Found"
         );
-    }
-
-    #[test]
-    fn maps_downloaded_bytes_to_current_file_percent() {
-        assert_eq!(download_progress_percent(25, Some(100)), Some(25.0));
-        assert_eq!(download_progress_percent(100, Some(100)), Some(100.0));
-        assert_eq!(download_progress_percent(150, Some(100)), Some(100.0));
-        assert_eq!(download_progress_percent(25, None), None);
-        assert_eq!(download_progress_percent(25, Some(0)), None);
-    }
-
-    #[test]
-    fn marks_available_tool_outdated_when_manifest_hash_mismatches() {
-        assert_eq!(
-            availability_for_manifest_probe("available", true),
-            "available"
-        );
-        assert_eq!(
-            availability_for_manifest_probe("available", false),
-            "outdated"
-        );
-        assert_eq!(availability_for_manifest_probe("missing", false), "missing");
-        assert_eq!(
-            availability_for_manifest_probe("cannot_execute", false),
-            "cannot_execute"
-        );
-    }
-
-    #[test]
-    fn retries_retryable_tool_download_errors_until_max_attempts() {
-        let retryable = ToolDownloadError::retryable("network timeout");
-        let fatal = ToolDownloadError::fatal("HTTP 404 Not Found");
-
-        assert!(should_retry_tool_download(&retryable, 1));
-        assert!(should_retry_tool_download(
-            &retryable,
-            TOOL_DOWNLOAD_MAX_ATTEMPTS - 1
-        ));
-        assert!(!should_retry_tool_download(
-            &retryable,
-            TOOL_DOWNLOAD_MAX_ATTEMPTS
-        ));
-        assert!(!should_retry_tool_download(&fatal, 1));
     }
 
     #[test]

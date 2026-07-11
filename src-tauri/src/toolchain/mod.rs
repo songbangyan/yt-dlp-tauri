@@ -1,0 +1,249 @@
+mod archive;
+mod install;
+mod probe;
+
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+
+pub(crate) use install::build_tool_download_client;
+pub use install::{install_target, InstallTargetRequest, NoopProgressReporter, ProgressReporter};
+pub use probe::{probe_target, require_tools};
+
+pub const TOOLS_DIRECTORY: &str = "Tools";
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ToolStatus {
+    pub name: String,
+    pub relative_path: String,
+    pub full_path: String,
+    pub availability: String,
+    pub version: Option<String>,
+    pub expected_version: Option<String>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ToolInstallProgress {
+    pub percent: Option<f64>,
+    pub status: String,
+    pub tool: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ToolPaths {
+    pub root: PathBuf,
+    pub yt_dlp: PathBuf,
+    pub ffmpeg: PathBuf,
+    pub ffmpeg_dir: PathBuf,
+    pub ffprobe: PathBuf,
+    pub deno: PathBuf,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ToolNames {
+    pub yt_dlp: &'static str,
+    pub ffmpeg: &'static str,
+    pub ffprobe: &'static str,
+    pub deno: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolsManifest {
+    pub schema_version: u32,
+    pub revision: Option<String>,
+    pub retrieved_at_utc: Option<String>,
+    pub targets: Vec<ManifestTarget>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ManifestTarget {
+    pub target: String,
+    pub tools: Vec<ManifestTool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ManifestTool {
+    pub name: String,
+    pub path: String,
+    pub source_url: String,
+    #[serde(rename = "version")]
+    pub version: Option<String>,
+    pub sha256: String,
+    pub kind: ManifestToolKind,
+    pub archive_path_suffix: Option<String>,
+    #[serde(rename = "licenseNotes")]
+    pub license_notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ManifestToolKind {
+    File,
+    Zip,
+}
+
+pub fn parse_manifest(json: &str) -> Result<ToolsManifest, String> {
+    let manifest: ToolsManifest = serde_json::from_str(json).map_err(|error| error.to_string())?;
+    if manifest.schema_version < 2 {
+        return Err("tools-manifest.json schemaVersion must be 2 or newer".to_string());
+    }
+    Ok(manifest)
+}
+
+pub fn manifest_target(manifest: &ToolsManifest, target: &str) -> Result<ManifestTarget, String> {
+    manifest
+        .targets
+        .iter()
+        .find(|item| item.target == target)
+        .cloned()
+        .ok_or_else(|| format!("No tool manifest target found for {target}"))
+}
+
+pub fn tool_target_from(os: &str, arch: &str) -> Option<&'static str> {
+    match (os, arch) {
+        ("windows", "x86_64") => Some("win-x64"),
+        ("windows", "aarch64") => Some("win-arm64"),
+        ("macos", "x86_64") => Some("macos-x64"),
+        ("macos", "aarch64") => Some("macos-arm64"),
+        _ => None,
+    }
+}
+
+pub(crate) fn tool_names_for_target(target: &str) -> Option<ToolNames> {
+    match target {
+        "win-x64" | "win-arm64" => Some(ToolNames {
+            yt_dlp: "yt-dlp.exe",
+            ffmpeg: "ffmpeg.exe",
+            ffprobe: "ffprobe.exe",
+            deno: "deno.exe",
+        }),
+        "macos-x64" | "macos-arm64" => Some(ToolNames {
+            yt_dlp: "yt-dlp",
+            ffmpeg: "ffmpeg",
+            ffprobe: "ffprobe",
+            deno: "deno",
+        }),
+        _ => None,
+    }
+}
+
+pub(crate) fn tool_paths_for_root(root: &Path, target: &str) -> Result<ToolPaths, String> {
+    let names = tool_names_for_target(target)
+        .ok_or_else(|| format!("Unsupported tool target: {target}"))?;
+    Ok(ToolPaths {
+        yt_dlp: root.join("yt-dlp").join(names.yt_dlp),
+        ffmpeg: root.join("ffmpeg").join("bin").join(names.ffmpeg),
+        ffmpeg_dir: root.join("ffmpeg").join("bin"),
+        ffprobe: root.join("ffmpeg").join("bin").join(names.ffprobe),
+        deno: root.join("deno").join(names.deno),
+        root: root.to_path_buf(),
+    })
+}
+
+pub fn relative_manifest_tool_path(tool: &ManifestTool) -> Result<PathBuf, String> {
+    let normalized = tool.path.replace('\\', "/");
+    let prefix = format!("{TOOLS_DIRECTORY}/");
+    let relative = normalized
+        .strip_prefix(&prefix)
+        .and_then(|value| value.split_once('/').map(|(_, rest)| rest))
+        .ok_or_else(|| format!("Invalid tool path in manifest: {}", tool.path))?;
+    archive::safe_archive_member(relative)
+        .map_err(|error| format!("Invalid tool path in manifest {}: {error}", tool.path))
+}
+
+fn tool_paths_from_manifest(root: &Path, target: &ManifestTarget) -> Result<ToolPaths, String> {
+    let path_for = |name: &str| -> Result<PathBuf, String> {
+        let tool = target
+            .tools
+            .iter()
+            .find(|tool| tool.name == name)
+            .ok_or_else(|| format!("Tool manifest target {} is missing {name}", target.target))?;
+        Ok(root.join(relative_manifest_tool_path(tool)?))
+    };
+    let ffmpeg = path_for("ffmpeg")?;
+    let ffmpeg_dir = ffmpeg
+        .parent()
+        .ok_or_else(|| "FFmpeg manifest path has no parent directory".to_string())?
+        .to_path_buf();
+
+    Ok(ToolPaths {
+        root: root.to_path_buf(),
+        yt_dlp: path_for("yt-dlp")?,
+        ffmpeg,
+        ffmpeg_dir,
+        ffprobe: path_for("ffprobe")?,
+        deno: path_for("deno")?,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn maps_supported_platform_arch_pairs_to_tool_targets() {
+        assert_eq!(tool_target_from("windows", "x86_64"), Some("win-x64"));
+        assert_eq!(tool_target_from("windows", "aarch64"), Some("win-arm64"));
+        assert_eq!(tool_target_from("macos", "x86_64"), Some("macos-x64"));
+        assert_eq!(tool_target_from("macos", "aarch64"), Some("macos-arm64"));
+        assert_eq!(tool_target_from("linux", "x86_64"), None);
+    }
+
+    #[test]
+    fn uses_platform_specific_tool_names() {
+        let windows = tool_names_for_target("win-x64").unwrap();
+        assert_eq!(windows.yt_dlp, "yt-dlp.exe");
+        assert_eq!(windows.ffmpeg, "ffmpeg.exe");
+        assert_eq!(windows.ffprobe, "ffprobe.exe");
+        assert_eq!(windows.deno, "deno.exe");
+
+        let macos = tool_names_for_target("macos-arm64").unwrap();
+        assert_eq!(macos.yt_dlp, "yt-dlp");
+        assert_eq!(macos.ffmpeg, "ffmpeg");
+        assert_eq!(macos.ffprobe, "ffprobe");
+        assert_eq!(macos.deno, "deno");
+        assert!(tool_names_for_target("linux-x64").is_none());
+    }
+
+    #[test]
+    fn selects_tools_for_current_manifest_target() {
+        let manifest = r#"{
+          "schemaVersion": 2,
+          "targets": [{
+            "target": "win-x64",
+            "tools": [{
+              "name": "yt-dlp",
+              "path": "Tools/win-x64/yt-dlp/yt-dlp.exe",
+              "sourceUrl": "https://example.test/yt-dlp.exe",
+              "sha256": "abc",
+              "kind": "file"
+            }]
+          }, {"target": "win-arm64", "tools": []}]
+        }"#;
+
+        let manifest = parse_manifest(manifest).unwrap();
+        let target = manifest_target(&manifest, "win-x64").unwrap();
+        assert_eq!(target.target, "win-x64");
+        assert_eq!(target.tools.len(), 1);
+        assert_eq!(target.tools[0].name, "yt-dlp");
+    }
+
+    #[test]
+    fn rejects_manifest_paths_that_escape_the_target_root() {
+        let tool = ManifestTool {
+            name: "yt-dlp".to_string(),
+            path: "Tools/win-x64/../../yt-dlp.exe".to_string(),
+            source_url: String::new(),
+            version: None,
+            sha256: String::new(),
+            kind: ManifestToolKind::File,
+            archive_path_suffix: None,
+            license_notes: None,
+        };
+
+        assert!(relative_manifest_tool_path(&tool).is_err());
+    }
+}
