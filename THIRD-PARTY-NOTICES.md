@@ -17,11 +17,12 @@
   - `src-tauri/Tools/win-x64/ffmpeg/bin/ffmpeg.exe`
   - `src-tauri/Tools/win-x64/ffmpeg/bin/ffprobe.exe`
 - Windows build source: <https://github.com/yt-dlp/FFmpeg-Builds>
-- Windows release tracked by toolchain revision `20260711.1`: `autobuild-2026-06-30-16-38`
-- Windows release asset: <https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-06-30-16-38/ffmpeg-N-125365-g9a01c1cb6a-win64-gpl.zip>
+- Exact Windows release, asset, and digest: `toolchain-lock.json`
+- Exact checksum URL, FFmpeg source commit, build-script commit, and corresponding-source URLs: `ffmpeg-provenance-<revision>.json` in the promoted toolchain release
 - macOS build source: <https://ffmpeg.martin-riedl.de/>
 - macOS release tracked by toolchain revision `20260711.1`: `8.1.2` for Intel and Apple Silicon
-- Notice: the selected FFmpeg build is the win64 GPL build. Keep the relevant GPL notices and source availability obligations when redistributing.
+- Notice: the selected Windows archive is a GPL build. FFmpeg-Builds scripts use their own MIT license. Keep the applicable GPL text, build-script notice, and corresponding-source access with any project mirror.
+- Procedure: [`docs/ffmpeg-redistribution.md`](docs/ffmpeg-redistribution.md)
 
 ## Deno
 

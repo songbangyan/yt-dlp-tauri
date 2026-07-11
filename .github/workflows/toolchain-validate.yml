@@ -267,28 +267,62 @@ jobs:
         if: ${{ matrix.target == 'win-x64' && steps.candidate_smoke.outcome == 'success' && steps.candidate_compatibility.outcome == 'success' }}
         continue-on-error: true
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
           import { createHash } from "node:crypto";
-          import { createWriteStream, readFileSync, writeFileSync } from "node:fs";
-          import { mkdir } from "node:fs/promises";
-          import { basename, join } from "node:path";
+          import { createWriteStream, existsSync, readFileSync, writeFileSync } from "node:fs";
+          import { appendFile, mkdir } from "node:fs/promises";
+          import { join } from "node:path";
           import { Readable, Transform } from "node:stream";
           import { pipeline } from "node:stream/promises";
+          import {
+            canonicalFfmpegProvenanceJson,
+            createFfmpegProvenanceAsset,
+            resolveFfmpegProvenance,
+            verifyFfmpegProvenance,
+          } from "./scripts/toolchain/ffmpeg-provenance.mjs";
 
           const lock = JSON.parse(readFileSync("toolchain-lock.json", "utf8"));
+          const policy = JSON.parse(readFileSync("toolchain-policy.json", "utf8"));
           const source = lock.sources.find((item) => item.id === "ffmpeg-windows");
           const asset = source?.assets.find((item) => item.target === "win-x64");
           if (!asset) throw new Error("Windows FFmpeg lock asset is missing");
+          const redistribution = policy.sources.find(
+            (item) => item.id === "ffmpeg-windows",
+          )?.redistribution;
+          if (!redistribution) throw new Error("Windows FFmpeg redistribution policy is missing");
+          for (const licenseFile of redistribution.licenseFiles) {
+            if (!existsSync(licenseFile)) {
+              throw new Error(`FFmpeg license file is missing: ${licenseFile}`);
+            }
+          }
+          const provenance = await resolveFfmpegProvenance(source, {
+            githubToken: process.env.GH_TOKEN,
+            licenseFiles: redistribution.licenseFiles,
+          });
+          const eligibility = verifyFfmpegProvenance(source, provenance);
+          if (!eligibility.eligible) {
+            process.stdout.write(`${eligibility.problems.join("\n")}\n`);
+            await appendFile(process.env.GITHUB_OUTPUT, "eligible=false\n", "utf8");
+            process.exit(0);
+          }
           const response = await fetch(asset.sourceUrl, {
-            headers: { "User-Agent": "yt-dlp-tauri-toolchain-validation" },
+            headers: {
+              Authorization: `Bearer ${process.env.GH_TOKEN}`,
+              "User-Agent": "yt-dlp-tauri-toolchain-validation",
+            },
           });
           if (!response.ok || !response.body) {
             throw new Error(`Failed to download Windows FFmpeg: ${response.status}`);
           }
           await mkdir(".toolchain/mirror-candidates", { recursive: true });
-          const mirrorName = `ffmpeg-win-x64-${lock.revision}.zip`;
+          const mirrorName = redistribution.mirrorNameTemplate.replace(
+            "{revision}",
+            lock.revision,
+          );
           const destination = join(".toolchain/mirror-candidates", mirrorName);
           const hash = createHash("sha256");
           let size = 0;
@@ -310,22 +344,20 @@ jobs:
               `Windows FFmpeg verification failed: ${sha256}/${size}`,
             );
           }
+          const provenanceAsset = createFfmpegProvenanceAsset(
+            lock.revision,
+            source,
+            provenance,
+          );
           writeFileSync(
-            join(".toolchain/mirror-candidates", `ffmpeg-source-${lock.revision}.json`),
-            `${JSON.stringify({
-              schemaVersion: 1,
-              revision: lock.revision,
-              sourceId: source.id,
-              releaseId: asset.releaseId,
-              assetId: asset.assetId,
-              upstreamName: basename(asset.assetName),
-              mirrorName,
-              sourceUrl: asset.sourceUrl,
-              size,
-              sha256,
-            }, null, 2)}\n`,
+            join(
+              ".toolchain/mirror-candidates",
+              `ffmpeg-provenance-${lock.revision}.json`,
+            ),
+            canonicalFfmpegProvenanceJson({ ...provenanceAsset, mirrorName }),
             "utf8",
           );
+          await appendFile(process.env.GITHUB_OUTPUT, "eligible=true\n", "utf8");
           NODE
 
       - name: Run project tests
@@ -353,7 +385,7 @@ jobs:
           BASELINE_COMPATIBILITY: ${{ steps.baseline_compatibility.outcome }}
           CANDIDATE_SMOKE: ${{ steps.candidate_smoke.outcome }}
           CANDIDATE_COMPATIBILITY: ${{ steps.candidate_compatibility.outcome }}
-          MIRROR_CANDIDATE: ${{ steps.mirror_candidate.outcome }}
+          MIRROR_ELIGIBLE: ${{ steps.mirror_candidate.outputs.eligible }}
           PROJECT_TESTS: ${{ steps.project_tests.outcome }}
           DIAGNOSTIC_YTDLP: ${{ steps.diagnostic_ytdlp.outcome }}
           DIAGNOSTIC_DENO: ${{ steps.diagnostic_deno.outcome }}
@@ -422,12 +454,18 @@ jobs:
               summary: "Infrastructure baseline failed",
             });
           }
-          const mirrorOk =
-            target !== "win-x64" ||
-            process.env.CANDIDATE_COMPATIBILITY !== "success" ||
-            process.env.MIRROR_CANDIDATE === "success";
+          if (target === "win-x64" && process.env.CANDIDATE_COMPATIBILITY === "success") {
+            diagnostics.push({
+              sourceUnit: "ffmpeg-mirror",
+              success: process.env.MIRROR_ELIGIBLE === "true",
+              summary:
+                process.env.MIRROR_ELIGIBLE === "true"
+                  ? "FFmpeg redistribution provenance complete"
+                  : "FFmpeg mirror skipped; upstream URL retained",
+            });
+          }
           const checks = {
-            supplyChain: smoke !== null && mirrorOk,
+            supplyChain: smoke !== null,
             executables: process.env.CANDIDATE_SMOKE === "success",
             dash: process.env.CANDIDATE_COMPATIBILITY === "success",
             projectTests: process.env.PROJECT_TESTS === "success",
@@ -479,7 +517,7 @@ jobs:
           retention-days: 14
 
       - name: Upload toolchain mirror candidates
-        if: ${{ matrix.target == 'win-x64' && steps.mirror_candidate.outcome == 'success' && steps.project_tests.outcome == 'success' }}
+        if: ${{ matrix.target == 'win-x64' && steps.mirror_candidate.outputs.eligible == 'true' && steps.project_tests.outcome == 'success' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: toolchain-mirror-candidates

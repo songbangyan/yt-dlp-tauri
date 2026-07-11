@@ -22,6 +22,20 @@ test("production policy covers every populated manifest target", () => {
     ],
   );
   assert.equal(sourceById(policy, "deno").repository, "denoland/deno");
+  assert.deepEqual(sourceById(policy, "ffmpeg-windows").redistribution, {
+    mode: "conditional-mirror",
+    mirrorNameTemplate: "ffmpeg-win-x64-{revision}.zip",
+    fallback: "upstream",
+    licenseFiles: ["LICENSE", "THIRD-PARTY-NOTICES.md"],
+    requiredEvidence: [
+      "binaryReleaseUrl",
+      "binarySha256",
+      "ffmpegSourceRevision",
+      "buildRepositoryRevision",
+      "checksumUrl",
+      "licenseFiles",
+    ],
+  });
 });
 
 test("policy rejects an unapproved source host", () => {
@@ -82,5 +96,27 @@ test("policy rejects duplicate source identifiers", () => {
         sources: [source, { ...source }],
       }),
     /duplicate source id duplicate/,
+  );
+});
+
+test("policy requires versioned mirror filenames and upstream fallback", () => {
+  const policy = readToolchainPolicy("toolchain-policy.json");
+  const source = structuredClone(sourceById(policy, "ffmpeg-windows"));
+  source.redistribution.mirrorNameTemplate = "ffmpeg.zip";
+
+  assert.throws(
+    () => validateToolchainPolicy({ ...policy, sources: [source] }),
+    /mirrorNameTemplate must be a versioned filename/u,
+  );
+});
+
+test("policy requires the complete redistribution evidence set", () => {
+  const policy = readToolchainPolicy("toolchain-policy.json");
+  const source = structuredClone(sourceById(policy, "ffmpeg-windows"));
+  source.redistribution.requiredEvidence.pop();
+
+  assert.throws(
+    () => validateToolchainPolicy({ ...policy, sources: [source] }),
+    /requiredEvidence is incomplete/u,
   );
 });

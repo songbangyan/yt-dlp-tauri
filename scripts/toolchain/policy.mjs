@@ -7,6 +7,14 @@ const SOURCE_SELECTIONS = new Set([
   "latest-redirect",
 ]);
 const ASSET_KINDS = new Set(["file", "zip"]);
+const REDISTRIBUTION_EVIDENCE = [
+  "binaryReleaseUrl",
+  "binarySha256",
+  "ffmpegSourceRevision",
+  "buildRepositoryRevision",
+  "checksumUrl",
+  "licenseFiles",
+];
 
 function requireObject(value, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -107,6 +115,41 @@ function validateAsset(assetValue, source, assetIndex, targets, approvedHosts) {
   return asset;
 }
 
+function validateRedistribution(value, sourceId) {
+  const redistribution = requireObject(value, `source ${sourceId} redistribution`);
+  if (redistribution.mode !== "conditional-mirror") {
+    throw new Error(`source ${sourceId} redistribution mode must be conditional-mirror`);
+  }
+  redistribution.mirrorNameTemplate = requireNonEmptyString(
+    redistribution.mirrorNameTemplate,
+    `source ${sourceId} mirrorNameTemplate`,
+  );
+  if (
+    !redistribution.mirrorNameTemplate.includes("{revision}") ||
+    /[\\/]/.test(redistribution.mirrorNameTemplate)
+  ) {
+    throw new Error(`source ${sourceId} mirrorNameTemplate must be a versioned filename`);
+  }
+  if (redistribution.fallback !== "upstream") {
+    throw new Error(`source ${sourceId} redistribution fallback must be upstream`);
+  }
+  redistribution.licenseFiles = requireUniqueStrings(
+    redistribution.licenseFiles,
+    `source ${sourceId} redistribution licenseFiles`,
+  );
+  redistribution.requiredEvidence = requireUniqueStrings(
+    redistribution.requiredEvidence,
+    `source ${sourceId} redistribution requiredEvidence`,
+  );
+  if (
+    JSON.stringify([...redistribution.requiredEvidence].sort()) !==
+    JSON.stringify([...REDISTRIBUTION_EVIDENCE].sort())
+  ) {
+    throw new Error(`source ${sourceId} redistribution requiredEvidence is incomplete`);
+  }
+  return redistribution;
+}
+
 export function validateToolchainPolicy(value) {
   const policy = requireObject(value, "toolchain policy");
   if (policy.schemaVersion !== 1) {
@@ -151,6 +194,9 @@ export function validateToolchainPolicy(value) {
       if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(source.repository)) {
         throw new Error(`source ${source.id} has invalid GitHub repository`);
       }
+    }
+    if (source.redistribution !== undefined) {
+      source.redistribution = validateRedistribution(source.redistribution, source.id);
     }
     if (!Array.isArray(source.assets) || source.assets.length === 0) {
       throw new Error(`source ${source.id} assets must be a non-empty array`);

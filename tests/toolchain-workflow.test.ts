@@ -95,6 +95,9 @@ test("validation workflow runs baseline first and diagnoses source units", () =>
   assert.match(workflow, /Candidate public-site Canary/);
   assert.match(workflow, /toolchain-canary\.json/);
   assert.match(workflow, /blocking: false/);
+  assert.match(workflow, /ffmpeg-provenance\.mjs/);
+  assert.match(workflow, /mirror_candidate\.outputs\.eligible == 'true'/);
+  assert.match(workflow, /FFmpeg mirror skipped; upstream URL retained/);
 });
 
 test("repository has one toolchain updater", () => {

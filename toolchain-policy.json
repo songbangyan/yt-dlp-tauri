@@ -109,6 +109,23 @@
       "adapter": "github-release",
       "repository": "yt-dlp/FFmpeg-Builds",
       "selection": "previous-complete-month",
+      "redistribution": {
+        "mode": "conditional-mirror",
+        "mirrorNameTemplate": "ffmpeg-win-x64-{revision}.zip",
+        "fallback": "upstream",
+        "licenseFiles": [
+          "LICENSE",
+          "THIRD-PARTY-NOTICES.md"
+        ],
+        "requiredEvidence": [
+          "binaryReleaseUrl",
+          "binarySha256",
+          "ffmpegSourceRevision",
+          "buildRepositoryRevision",
+          "checksumUrl",
+          "licenseFiles"
+        ]
+      },
       "assets": [
         {
           "target": "win-x64",
