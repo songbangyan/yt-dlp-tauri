@@ -243,7 +243,23 @@
             }
           ]
         }
-      ]
+      ],
+      "redistribution": {
+        "mirrorEligible": true,
+        "mirrorNameTemplate": "ffmpeg-win-x64-{revision}.zip",
+        "provenance": {
+          "binaryReleaseUrl": "https://github.com/yt-dlp/FFmpeg-Builds/releases/tag/autobuild-2026-06-30-16-38",
+          "binarySha256": "99502f28cb80ab012746e1545463abe061375072c81f500ac5286da11beb00f7",
+          "ffmpegSourceRevision": "9a01c1cb6a4cf87529fe9898b66ec55c5b032639",
+          "buildRepositoryRevision": "76a8795c5a71c26a8a6c35eb5f83d213c5d1dd58",
+          "checksumUrl": "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-06-30-16-38/checksums.sha256",
+          "checksumSha256": "59c625d2b2ab19d9c5269649f2eeaf263d51a1e016e7fd8823e844dc96ccfc96",
+          "licenseFiles": [
+            "LICENSE",
+            "THIRD-PARTY-NOTICES.md"
+          ]
+        }
+      }
     },
     {
       "id": "yt-dlp",
@@ -321,6 +337,6 @@
       ]
     }
   ],
-  "revision": "20260711.1",
-  "generatedAtUtc": "2026-07-11T11:51:15.615Z"
+  "revision": "20260711.2",
+  "generatedAtUtc": "2026-07-11T13:39:24.835Z"
 }

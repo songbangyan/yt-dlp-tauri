@@ -64,7 +64,7 @@ jobs:
 
       - name: Verify candidate source URLs
         if: steps.update.outputs.changed == 'true'
-        run: node scripts/check-tool-source-urls.mjs
+        run: node scripts/check-tool-source-urls.mjs --source-mode upstream
 
       - name: Push weekly candidate branch
         if: steps.update.outputs.changed == 'true'

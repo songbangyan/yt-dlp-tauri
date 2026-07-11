@@ -120,6 +120,20 @@ function validateRedistribution(value, sourceId) {
   if (redistribution.mode !== "conditional-mirror") {
     throw new Error(`source ${sourceId} redistribution mode must be conditional-mirror`);
   }
+  redistribution.releaseRepository = requireNonEmptyString(
+    redistribution.releaseRepository,
+    `source ${sourceId} releaseRepository`,
+  );
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(redistribution.releaseRepository)) {
+    throw new Error(`source ${sourceId} has an invalid redistribution releaseRepository`);
+  }
+  redistribution.releaseTag = requireNonEmptyString(
+    redistribution.releaseTag,
+    `source ${sourceId} releaseTag`,
+  );
+  if (!/^[A-Za-z0-9_.-]+$/.test(redistribution.releaseTag)) {
+    throw new Error(`source ${sourceId} has an invalid redistribution releaseTag`);
+  }
   redistribution.mirrorNameTemplate = requireNonEmptyString(
     redistribution.mirrorNameTemplate,
     `source ${sourceId} mirrorNameTemplate`,

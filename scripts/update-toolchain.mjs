@@ -52,7 +52,7 @@ function fixtureAdapters(fixture) {
   if (!fixture || fixture.schemaVersion !== 1) {
     throw new Error("Toolchain resolver fixture schemaVersion must be 1");
   }
-  for (const field of ["githubReleases", "redirects", "inspections"]) {
+  for (const field of ["githubReleases", "redirects", "inspections", "provenance"]) {
     if (!fixture[field] || typeof fixture[field] !== "object" || Array.isArray(fixture[field])) {
       throw new Error(`Toolchain resolver fixture requires ${field}`);
     }
@@ -70,6 +70,8 @@ function fixtureAdapters(fixture) {
       fixtureValue(fixture.redirects, String(url), "redirect"),
     inspectAsset: async ({ url }) =>
       fixtureValue(fixture.inspections, String(url), "inspection"),
+    provenanceResolver: async (source) =>
+      fixtureValue(fixture.provenance, source.id, "provenance"),
   };
 }
 

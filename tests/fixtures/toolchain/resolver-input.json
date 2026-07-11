@@ -229,5 +229,19 @@
         }
       ]
     }
+  },
+  "provenance": {
+    "ffmpeg-windows": {
+      "binaryReleaseUrl": "https://github.com/yt-dlp/FFmpeg-Builds/releases/tag/autobuild-2026-06-30-16-38",
+      "binarySha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "ffmpegSourceRevision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "buildRepositoryRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "checksumUrl": "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-06-30-16-38/checksums.sha256",
+      "checksumSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "licenseFiles": [
+        "LICENSE",
+        "THIRD-PARTY-NOTICES.md"
+      ]
+    }
   }
 }

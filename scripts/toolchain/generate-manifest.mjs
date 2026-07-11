@@ -31,6 +31,35 @@ function runtimeVersion(version) {
   return /^v[0-9]/.test(value) ? value.slice(1) : value;
 }
 
+function manifestSourceUrl(policySource, lockSource, asset, revision, sourceMode) {
+  if (sourceMode === "upstream" || lockSource.redistribution?.mirrorEligible !== true) {
+    return asset.sourceUrl;
+  }
+  if (sourceMode !== "runtime") throw new Error(`Unsupported manifest source mode: ${sourceMode}`);
+  const redistribution = policySource?.redistribution;
+  if (!redistribution) {
+    throw new Error(`${lockSource.id} is mirror eligible without redistribution policy`);
+  }
+  const template =
+    lockSource.redistribution.mirrorNameTemplate ?? redistribution.mirrorNameTemplate;
+  const mirrorFilename = requireString(template, `${lockSource.id} mirror name template`).replace(
+    "{revision}",
+    revision,
+  );
+  if (mirrorFilename === template || /[\\/]/u.test(mirrorFilename)) {
+    throw new Error(`${lockSource.id} mirror name template must include a safe revision token`);
+  }
+  const repository = requireString(
+    redistribution.releaseRepository,
+    `${lockSource.id} redistribution repository`,
+  );
+  const releaseTag = requireString(
+    redistribution.releaseTag,
+    `${lockSource.id} redistribution release tag`,
+  );
+  return `https://github.com/${repository}/releases/download/${releaseTag}/${mirrorFilename}`;
+}
+
 function ensureSameValues(left, right, label) {
   const leftValues = [...new Set(left)].sort();
   const rightValues = [...new Set(right)].sort();
@@ -39,7 +68,7 @@ function ensureSameValues(left, right, label) {
   }
 }
 
-export function generateManifest(policy, lock) {
+export function generateManifest(policy, lock, { sourceMode = "runtime" } = {}) {
   if (!lock || typeof lock !== "object") throw new Error("Toolchain lock must be an object");
   if (!REVISION_PATTERN.test(lock.revision ?? "")) {
     throw new Error(`Invalid toolchain lock revision: ${lock.revision}`);
@@ -61,6 +90,7 @@ export function generateManifest(policy, lock) {
   const policySourceIds = requireArray(policy?.sources, "Toolchain policy sources").map(
     (source) => source.id,
   );
+  const policySources = new Map(policy.sources.map((source) => [source.id, source]));
   const lockSources = requireArray(lock.sources, "Toolchain lock sources");
   ensureSameValues(
     policySourceIds,
@@ -71,11 +101,15 @@ export function generateManifest(policy, lock) {
   const toolsByTarget = new Map(lockTargets.map((target) => [target, []]));
   const seenTools = new Set();
   for (const source of lockSources) {
+    const policySource = policySources.get(source.id);
     const version = runtimeVersion(source.version);
     for (const asset of requireArray(source.assets, `${source.id} assets`)) {
       const tools = toolsByTarget.get(asset.target);
       if (!tools) throw new Error(`${source.id} uses unknown target ${asset.target}`);
-      const sourceUrl = requireString(asset.sourceUrl, `${source.id} source URL`);
+      const sourceUrl = requireString(
+        manifestSourceUrl(policySource, source, asset, lock.revision, sourceMode),
+        `${source.id} source URL`,
+      );
       const parsedUrl = new URL(sourceUrl);
       if (parsedUrl.protocol !== "https:") {
         throw new Error(`${source.id} source URL must use HTTPS`);

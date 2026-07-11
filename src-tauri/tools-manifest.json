@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
-  "revision": "20260711.1",
-  "retrievedAtUtc": "2026-07-11T11:51:15.615Z",
+  "revision": "20260711.2",
+  "retrievedAtUtc": "2026-07-11T13:39:24.835Z",
   "targets": [
     {
       "target": "win-x64",
@@ -18,7 +18,7 @@
         {
           "name": "ffmpeg",
           "path": "Tools/win-x64/ffmpeg/bin/ffmpeg.exe",
-          "sourceUrl": "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-06-30-16-38/ffmpeg-N-125365-g9a01c1cb6a-win64-gpl.zip",
+          "sourceUrl": "https://github.com/Chlience/yt-dlp-tauri/releases/download/toolchain-stable/ffmpeg-win-x64-20260711.2.zip",
           "version": "autobuild-2026-06-30-16-38",
           "sha256": "b2663834d9162f6ee431e7d864d8afd7ac385ec289de70463af67beab6f2257e",
           "kind": "zip",
@@ -28,7 +28,7 @@
         {
           "name": "ffprobe",
           "path": "Tools/win-x64/ffmpeg/bin/ffprobe.exe",
-          "sourceUrl": "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-06-30-16-38/ffmpeg-N-125365-g9a01c1cb6a-win64-gpl.zip",
+          "sourceUrl": "https://github.com/Chlience/yt-dlp-tauri/releases/download/toolchain-stable/ffmpeg-win-x64-20260711.2.zip",
           "version": "autobuild-2026-06-30-16-38",
           "sha256": "3a3525df7f7722e3131a2e0a4c22063f4b2ae50e25a3a2008cf1f7b9f3804aaf",
           "kind": "zip",

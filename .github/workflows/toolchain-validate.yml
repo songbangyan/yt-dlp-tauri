@@ -66,6 +66,7 @@ jobs:
           node --input-type=module <<'NODE'
           import { execFileSync } from "node:child_process";
           import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+          import { generateManifest } from "./scripts/toolchain/generate-manifest.mjs";
 
           mkdirSync(".toolchain/manifests", { recursive: true });
           const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
@@ -84,12 +85,25 @@ jobs:
             throw new Error(`Unable to read baseline ${path}`);
           };
 
-          const candidateManifest = readJson("src-tauri/tools-manifest.json");
+          const runtimeCandidateManifest = readJson("src-tauri/tools-manifest.json");
+          const candidateLock = readJson("toolchain-lock.json");
+          const policy = readJson("toolchain-policy.json");
+          const generatedRuntimeManifest = generateManifest(policy, candidateLock);
+          if (JSON.stringify(runtimeCandidateManifest) !== JSON.stringify(generatedRuntimeManifest)) {
+            throw new Error("Checked-in runtime manifest differs from the generated lock output");
+          }
+          const candidateManifest = generateManifest(policy, candidateLock, {
+            sourceMode: "upstream",
+          });
           const baselineManifestJson = showBaseline("src-tauri/tools-manifest.json");
           const baselineLockJson = showBaseline("toolchain-lock.json");
           const baselineManifest = JSON.parse(baselineManifestJson);
-          copyFileSync("src-tauri/tools-manifest.json", ".toolchain/manifests/candidate.json");
+          copyFileSync(
+            "src-tauri/tools-manifest.json",
+            ".toolchain/manifests/runtime-candidate.json",
+          );
           copyFileSync("toolchain-lock.json", ".toolchain/manifests/candidate-lock.json");
+          writeJson(".toolchain/manifests/candidate.json", candidateManifest);
           writeFileSync(".toolchain/manifests/baseline.json", baselineManifestJson, "utf8");
           writeFileSync(".toolchain/manifests/baseline-lock.json", baselineLockJson, "utf8");
 
@@ -401,7 +415,7 @@ jobs:
 
           const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
           const target = process.env.TARGET;
-          const manifest = readJson(".toolchain/manifests/candidate.json");
+          const manifest = readJson(".toolchain/manifests/runtime-candidate.json");
           const lock = readJson(".toolchain/manifests/candidate-lock.json");
           const manifestTarget = manifest.targets.find((item) => item.target === target);
           if (!manifestTarget) throw new Error(`Candidate manifest is missing ${target}`);
@@ -465,7 +479,12 @@ jobs:
             });
           }
           const checks = {
-            supplyChain: smoke !== null,
+            supplyChain:
+              smoke !== null &&
+              (!manifestTarget.tools.some((tool) =>
+                tool.sourceUrl.includes("/releases/download/toolchain-stable/"),
+              ) ||
+                process.env.MIRROR_ELIGIBLE === "true"),
             executables: process.env.CANDIDATE_SMOKE === "success",
             dash: process.env.CANDIDATE_COMPATIBILITY === "success",
             projectTests: process.env.PROJECT_TESTS === "success",

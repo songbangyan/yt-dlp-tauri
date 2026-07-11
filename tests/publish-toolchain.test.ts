@@ -1,0 +1,285 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  createPublicationPlan,
+  verifyUploadedAsset,
+} from "../scripts/publish-toolchain.mjs";
+import {
+  createTargetReport,
+  mergeTargetReports,
+} from "../scripts/toolchain/validation-report.mjs";
+
+function targetReport(target: string) {
+  const architecture = target === "macos-arm64" ? "arm64" : "x64";
+  const tools = ["deno", "ffmpeg", "ffprobe", "yt-dlp"].map((name) => ({
+    name,
+    version: "1.0.0",
+  }));
+  return createTargetReport({
+    target,
+    success: true,
+    runnerImage: target === "win-x64" ? "windows-latest" : "macos-15",
+    architecture,
+    checks: {
+      supplyChain: true,
+      executables: true,
+      dash: true,
+      projectTests: true,
+    },
+    tools,
+    assets: tools.map((tool, index) => ({
+      sourceId: tool.name,
+      releaseId: index + 1,
+      assetId: index + 10,
+      assetName: `${tool.name}.zip`,
+      sourceUrl: `https://example.test/${tool.name}.zip`,
+      size: 100 + index,
+      officialSha256: String(index + 1).repeat(64),
+    })),
+    extractedHashes: tools.map((tool, index) => ({
+      tool: tool.name,
+      path: `Tools/${target}/${tool.name}`,
+      sha256: String(index + 5).repeat(64),
+    })),
+  });
+}
+
+function publicationFixture(overrides = {}) {
+  const revision = "20260711.1";
+  const commitSha = "a".repeat(40);
+  const manifestSha256 = "b".repeat(64);
+  const lockSha256 = "c".repeat(64);
+  const report = mergeTargetReports(
+    [targetReport("win-x64"), targetReport("macos-x64"), targetReport("macos-arm64")],
+    {
+      revision,
+      commitSha,
+      manifestSha256,
+      lockSha256,
+      runId: "1234",
+      runUrl: "https://github.com/Chlience/yt-dlp-tauri/actions/runs/1234",
+    },
+  );
+  if (overrides.reportCommitSha) report.commitSha = overrides.reportCommitSha;
+  const mirrorName = `ffmpeg-win-x64-${revision}.zip`;
+  return {
+    repository: "Chlience/yt-dlp-tauri",
+    revision,
+    commitSha,
+    mergedPullRequest: {
+      number: 42,
+      merged: true,
+      mergeCommitSha: commitSha,
+    },
+    lock: {
+      sha256: lockSha256,
+      value: {
+        revision,
+        sources: [
+          {
+            id: "ffmpeg-windows",
+            redistribution: {
+              mirrorEligible: true,
+              mirrorNameTemplate: "ffmpeg-win-x64-{revision}.zip",
+            },
+            assets: [{ target: "win-x64", sha256: "d".repeat(64), size: 1000 }],
+          },
+        ],
+      },
+    },
+    manifest: {
+      name: `tools-manifest-${revision}.json`,
+      sha256: manifestSha256,
+      size: 2048,
+      value: {
+        revision,
+        targets: [
+          {
+            target: "win-x64",
+            tools: [
+              {
+                name: "ffmpeg",
+                sourceUrl: `https://github.com/Chlience/yt-dlp-tauri/releases/download/toolchain-stable/${mirrorName}`,
+              },
+              {
+                name: "ffprobe",
+                sourceUrl: `https://github.com/Chlience/yt-dlp-tauri/releases/download/toolchain-stable/${mirrorName}`,
+              },
+            ],
+          },
+        ],
+      },
+    },
+    validation: {
+      name: `toolchain-validation-${revision}.json`,
+      sha256: "e".repeat(64),
+      size: 4096,
+      report,
+    },
+    mirrorCandidate: {
+      name: mirrorName,
+      sha256: "d".repeat(64),
+      size: 1000,
+      provenanceName: `ffmpeg-provenance-${revision}.json`,
+      provenanceSha256: "f".repeat(64),
+      provenanceSize: 1024,
+      provenance: {
+        schemaVersion: 1,
+        revision,
+        mirrorName,
+        binary: { sha256: "d".repeat(64) },
+      },
+    },
+    release: {
+      id: 101,
+      tag_name: "toolchain-stable",
+      prerelease: true,
+      draft: false,
+      body: "# Stable toolchain\n\nManaged by automation\n",
+      assets: [],
+    },
+    applicationRelease: {
+      id: 202,
+      tag_name: "v0.1.11",
+      prerelease: false,
+      draft: false,
+    },
+    currentChannel: {
+      schemaVersion: 1,
+      revision: "20260710.1",
+      manifest: "tools-manifest-20260710.1.json",
+      sha256: "9".repeat(64),
+    },
+    ...overrides,
+  };
+}
+
+test("publication promotes the channel after every immutable asset", () => {
+  const plan = createPublicationPlan(publicationFixture());
+
+  assert.deepEqual(
+    plan.steps.map((step) => step.kind),
+    [
+      "upload-ffmpeg",
+      "verify-ffmpeg",
+      "upload-provenance",
+      "upload-manifest",
+      "upload-validation",
+      "promote-channel",
+      "update-application-compatibility-manifest",
+    ],
+  );
+  assert.equal(
+    plan.steps.at(-1)?.releaseTag,
+    "v0.1.11",
+    "compatibility manifest must target the latest normal application release",
+  );
+});
+
+test("publisher requires the fixed prerelease and a normal application release", () => {
+  const stableRelease = publicationFixture().release;
+  assert.throws(
+    () =>
+      createPublicationPlan(
+        publicationFixture({ release: { ...stableRelease, prerelease: false } }),
+      ),
+    /stable release must be a prerelease/iu,
+  );
+  assert.throws(
+    () =>
+      createPublicationPlan(
+        publicationFixture({
+          applicationRelease: {
+            id: 202,
+            tag_name: "v0.1.11",
+            prerelease: true,
+            draft: false,
+          },
+        }),
+      ),
+    /application release must be a published normal release/iu,
+  );
+});
+
+test("publisher reuses only an exact immutable release asset", () => {
+  const fixture = publicationFixture();
+  const mirror = fixture.mirrorCandidate;
+  fixture.release.assets = [
+    {
+      name: mirror.name,
+      size: mirror.size,
+      digest: `sha256:${mirror.sha256}`,
+      browser_download_url: `https://github.com/Chlience/yt-dlp-tauri/releases/download/toolchain-stable/${mirror.name}`,
+    },
+  ];
+  assert.equal(createPublicationPlan(fixture).steps[0].action, "reuse");
+
+  fixture.release.assets[0].digest = `sha256:${"0".repeat(64)}`;
+  assert.throws(() => createPublicationPlan(fixture), /digest does not match/u);
+});
+
+test("publisher rejects a report from another commit", () => {
+  assert.throws(
+    () => createPublicationPlan(publicationFixture({ reportCommitSha: "d".repeat(40) })),
+    /validation commit does not match/u,
+  );
+});
+
+test("publisher requires a newer revision and associated merged PR", () => {
+  assert.throws(
+    () =>
+      createPublicationPlan(
+        publicationFixture({
+          currentChannel: {
+            schemaVersion: 1,
+            revision: "20260712.1",
+            manifest: "tools-manifest-20260712.1.json",
+            sha256: "9".repeat(64),
+          },
+        }),
+      ),
+    /newer than the promoted revision/u,
+  );
+  assert.throws(
+    () =>
+      createPublicationPlan(
+        publicationFixture({
+          mergedPullRequest: { number: 42, merged: false, mergeCommitSha: "a".repeat(40) },
+        }),
+      ),
+    /merged pull request/u,
+  );
+});
+
+test("uploaded asset verification requires exact name, size, and digest", () => {
+  const expected = {
+    name: "tools-manifest-20260711.1.json",
+    size: 100,
+    sha256: "a".repeat(64),
+  };
+  assert.doesNotThrow(() =>
+    verifyUploadedAsset(
+      {
+        name: expected.name,
+        size: expected.size,
+        digest: `sha256:${expected.sha256}`,
+        browser_download_url: "https://github.com/example/repo/releases/download/tag/file",
+      },
+      expected,
+    ),
+  );
+  assert.throws(
+    () =>
+      verifyUploadedAsset(
+        {
+          name: expected.name,
+          size: expected.size,
+          digest: `sha256:${"b".repeat(64)}`,
+          browser_download_url: "https://github.com/example/repo/releases/download/tag/file",
+        },
+        expected,
+      ),
+    /digest does not match/u,
+  );
+});

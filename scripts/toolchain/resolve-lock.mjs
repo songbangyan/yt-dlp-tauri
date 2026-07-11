@@ -2,6 +2,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
+import {
+  resolveFfmpegProvenance,
+  verifyFfmpegProvenance,
+} from "./ffmpeg-provenance.mjs";
 import { fetchGitHubReleases } from "./github-releases.mjs";
 import { inspectAsset as inspectAssetDefault } from "./inspect-asset.mjs";
 import { validateToolchainPolicy } from "./policy.mjs";
@@ -349,6 +353,68 @@ async function resolveRedirectSource({
   };
 }
 
+async function attachRedistribution({
+  policySource,
+  lockSource,
+  currentSource,
+  provenanceResolver,
+  githubToken,
+}) {
+  const redistribution = policySource.redistribution;
+  if (!redistribution) return lockSource;
+  let provenance;
+  try {
+    provenance = await provenanceResolver(lockSource, {
+      githubToken,
+      licenseFiles: redistribution.licenseFiles,
+    });
+  } catch (error) {
+    if (redistribution.fallback !== "upstream") throw error;
+    const previous = currentSource?.redistribution;
+    const currentWithoutRedistribution = { ...currentSource };
+    delete currentWithoutRedistribution.redistribution;
+    const sameLockedSource =
+      currentSource &&
+      JSON.stringify(stableValue(currentWithoutRedistribution)) ===
+        JSON.stringify(stableValue(lockSource));
+    const sameLicenseFiles =
+      JSON.stringify([...(previous?.provenance?.licenseFiles ?? [])].sort(compareStrings)) ===
+      JSON.stringify([...redistribution.licenseFiles].sort(compareStrings));
+    const previousEligibility = verifyFfmpegProvenance(
+      lockSource,
+      previous?.provenance,
+    );
+    if (
+      sameLockedSource &&
+      previous?.mirrorEligible === true &&
+      previous.mirrorNameTemplate === redistribution.mirrorNameTemplate &&
+      sameLicenseFiles &&
+      previousEligibility.eligible
+    ) {
+      return {
+        ...lockSource,
+        redistribution: previous,
+      };
+    }
+    return {
+      ...lockSource,
+      redistribution: {
+        mirrorEligible: false,
+        mirrorNameTemplate: redistribution.mirrorNameTemplate,
+      },
+    };
+  }
+  const eligibility = verifyFfmpegProvenance(lockSource, provenance);
+  return {
+    ...lockSource,
+    redistribution: {
+      mirrorEligible: eligibility.eligible,
+      mirrorNameTemplate: redistribution.mirrorNameTemplate,
+      ...(eligibility.eligible ? { provenance } : {}),
+    },
+  };
+}
+
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
   if (value && typeof value === "object") {
@@ -379,6 +445,7 @@ export async function resolveToolchainLock({
   githubAdapter = fetchGitHubReleases,
   redirectAdapter = resolveRedirectAsset,
   inspectAsset = inspectAssetDefault,
+  provenanceResolver = resolveFfmpegProvenance,
   githubToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "",
 }) {
   validDate(now, "Toolchain lock generation time");
@@ -388,19 +455,29 @@ export async function resolveToolchainLock({
   const inspectionDirectory =
     tempDirectory ?? (await mkdtemp(join(tmpdir(), "yt-dlp-tauri-toolchain-")));
   const inspect = createInspector(inspectAsset, inspectionDirectory, approvedHosts);
+  const currentSources = new Map(
+    (currentLock?.sources ?? []).map((source) => [source.id, source]),
+  );
 
   try {
     const sources = [];
     for (const source of policy.sources) {
       if (source.adapter === "github-release") {
-        sources.push(
-          await resolveGitHubSource({
+        const resolved = await resolveGitHubSource({
             source,
             now,
             approvedHosts,
             githubAdapter,
             githubToken,
             inspect,
+          });
+        sources.push(
+          await attachRedistribution({
+            policySource: source,
+            lockSource: resolved,
+            currentSource: currentSources.get(source.id),
+            provenanceResolver,
+            githubToken,
           }),
         );
       } else if (source.adapter === "redirect-release") {

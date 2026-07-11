@@ -112,6 +112,41 @@ function fixturePolicy() {
   };
 }
 
+function withFfmpegRedistribution(policy = fixturePolicy()) {
+  const source = policy.sources.find((item) => item.id === "ffmpeg-windows");
+  source.redistribution = {
+    mode: "conditional-mirror",
+    releaseRepository: "Chlience/yt-dlp-tauri",
+    releaseTag: "toolchain-stable",
+    mirrorNameTemplate: "ffmpeg-win-x64-{revision}.zip",
+    fallback: "upstream",
+    licenseFiles: ["LICENSE", "THIRD-PARTY-NOTICES.md"],
+    requiredEvidence: [
+      "binaryReleaseUrl",
+      "binarySha256",
+      "ffmpegSourceRevision",
+      "buildRepositoryRevision",
+      "checksumUrl",
+      "licenseFiles",
+    ],
+  };
+  return policy;
+}
+
+function ffmpegProvenanceFixture() {
+  return {
+    binaryReleaseUrl:
+      "https://github.com/yt-dlp/FFmpeg-Builds/releases/tag/autobuild-2026-06-30-16-38",
+    binarySha256: "b".repeat(64),
+    ffmpegSourceRevision: "e".repeat(40),
+    buildRepositoryRevision: "f".repeat(40),
+    checksumUrl:
+      "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-06-30-16-38/checksums.sha256",
+    checksumSha256: "1".repeat(64),
+    licenseFiles: ["LICENSE", "THIRD-PARTY-NOTICES.md"],
+  };
+}
+
 const releasesByRepository = {
   "yt-dlp/yt-dlp": [
     {
@@ -265,6 +300,45 @@ test("resolver groups ffmpeg and ffprobe from one Windows archive", async () => 
     ["ffmpeg", "ffprobe"],
   );
   assert.doesNotMatch(JSON.stringify(lock), /transient-download/);
+});
+
+test("provenance lookup failure keeps the locked upstream fallback", async () => {
+  const lock = await resolveToolchainLock(
+    fixtureOptions({
+      policy: withFfmpegRedistribution(),
+      provenanceResolver: async () => {
+        throw new Error("provenance service unavailable");
+      },
+    }),
+  );
+  const source = lock.sources.find((item) => item.id === "ffmpeg-windows");
+
+  assert.deepEqual(source.redistribution, {
+    mirrorEligible: false,
+    mirrorNameTemplate: "ffmpeg-win-x64-{revision}.zip",
+  });
+});
+
+test("transient provenance failure preserves verified immutable evidence", async () => {
+  const policy = withFfmpegRedistribution();
+  const verified = await resolveToolchainLock(
+    fixtureOptions({
+      policy,
+      provenanceResolver: async () => ffmpegProvenanceFixture(),
+    }),
+  );
+  const retried = await resolveToolchainLock(
+    fixtureOptions({
+      policy,
+      currentLock: verified,
+      now: new Date("2026-07-12T12:00:00Z"),
+      provenanceResolver: async () => {
+        throw new Error("provenance service unavailable");
+      },
+    }),
+  );
+
+  assert.deepEqual(retried, verified);
 });
 
 test("unchanged resolved sources preserve revision and generation time", async () => {

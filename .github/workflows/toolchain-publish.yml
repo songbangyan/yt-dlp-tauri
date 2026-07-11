@@ -1,0 +1,490 @@
+name: Toolchain Publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - toolchain-lock.json
+      - src-tauri/tools-manifest.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: toolchain-publish
+  cancel-in-progress: false
+
+jobs:
+  validation:
+    name: Validate candidate
+    permissions:
+      contents: read
+    uses: ./.github/workflows/toolchain-validate.yml
+
+  publish:
+    name: Publish validated toolchain
+    if: ${{ github.ref == 'refs/heads/main' }}
+    needs: validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: toolchain-stable
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+
+      - name: Download canonical validation report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: toolchain-validation-report
+          path: .toolchain/validation
+
+      - name: Download toolchain mirror candidates
+        id: mirror_artifact
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: toolchain-mirror-candidates
+          path: .toolchain/mirror-candidates
+
+      - name: Verify exact main and collect release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .toolchain/publication
+
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo "Refusing to publish stale main commit $GITHUB_SHA; current main is $main_sha" >&2
+            exit 1
+          fi
+
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${GITHUB_REPOSITORY}/commits/$GITHUB_SHA/pulls" \
+            > .toolchain/publication/associated-pulls.json
+          gh api "repos/${GITHUB_REPOSITORY}/releases/latest" \
+            > .toolchain/publication/application-release.json
+
+          set +e
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
+            > .toolchain/publication/stable-release.json \
+            2> .toolchain/publication/stable-release.err
+          stable_status=$?
+          set -e
+          if [[ "$stable_status" -ne 0 ]]; then
+            if node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const message = readFileSync(
+            ".toolchain/publication/stable-release.err",
+            "utf8",
+          );
+          process.exit(/HTTP 404|Not Found/iu.test(message) ? 0 : 1);
+          NODE
+            then
+              printf 'null\n' > .toolchain/publication/stable-release.json
+            else
+              cat .toolchain/publication/stable-release.err >&2
+              exit "$stable_status"
+            fi
+          fi
+
+      - name: Build and validate publication plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { createHash } from "node:crypto";
+          import { readFileSync, writeFileSync } from "node:fs";
+          import { join } from "node:path";
+
+          const directory = ".toolchain/publication";
+          const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
+          const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+          const descriptor = (path, name, contentField) => {
+            const bytes = readFileSync(path);
+            const result = { name, size: bytes.length, sha256: sha256(bytes) };
+            if (contentField) result[contentField] = JSON.parse(bytes);
+            return result;
+          };
+
+          const lockPath = "toolchain-lock.json";
+          const manifestPath = "src-tauri/tools-manifest.json";
+          const validationPath = ".toolchain/validation/toolchain-validation.json";
+          const lockBytes = readFileSync(lockPath);
+          const lock = JSON.parse(lockBytes);
+          const revision = lock.revision;
+          const commitSha = process.env.GITHUB_SHA;
+          const pulls = readJson(join(directory, "associated-pulls.json"));
+          const matchingPulls = pulls.filter(
+            (pull) =>
+              pull.merged_at &&
+              pull.base?.ref === "main" &&
+              pull.merge_commit_sha === commitSha,
+          );
+          if (matchingPulls.length !== 1) {
+            throw new Error(
+              `Expected one merged main pull request for ${commitSha}, found ${matchingPulls.length}`,
+            );
+          }
+
+          const stableRelease = readJson(join(directory, "stable-release.json"));
+          if (stableRelease) {
+            stableRelease.body ??= "";
+            stableRelease.assets ??= [];
+          }
+          const applicationRelease = readJson(
+            join(directory, "application-release.json"),
+          );
+          const source = lock.sources.find((item) => item.id === "ffmpeg-windows");
+          let mirrorCandidate;
+          if (source?.redistribution?.mirrorEligible === true) {
+            const mirrorName = source.redistribution.mirrorNameTemplate.replace(
+              "{revision}",
+              revision,
+            );
+            const mirrorPath = join(".toolchain/mirror-candidates", mirrorName);
+            const provenanceName = `ffmpeg-provenance-${revision}.json`;
+            const provenancePath = join(
+              ".toolchain/mirror-candidates",
+              provenanceName,
+            );
+            const mirror = descriptor(mirrorPath, mirrorName);
+            const provenance = descriptor(
+              provenancePath,
+              provenanceName,
+              "provenance",
+            );
+            mirrorCandidate = {
+              ...mirror,
+              provenanceName,
+              provenanceSha256: provenance.sha256,
+              provenanceSize: provenance.size,
+              provenance: provenance.provenance,
+            };
+          }
+
+          const input = {
+            repository: process.env.GITHUB_REPOSITORY,
+            revision,
+            commitSha,
+            mergedPullRequest: {
+              number: matchingPulls[0].number,
+              merged: true,
+              mergeCommitSha: matchingPulls[0].merge_commit_sha,
+            },
+            lock: { sha256: sha256(lockBytes), value: lock },
+            manifest: descriptor(
+              manifestPath,
+              `tools-manifest-${revision}.json`,
+              "value",
+            ),
+            validation: descriptor(
+              validationPath,
+              `toolchain-validation-${revision}.json`,
+              "report",
+            ),
+            mirrorCandidate,
+            release: stableRelease,
+            applicationRelease,
+          };
+          writeFileSync(
+            join(directory, "publication-input.json"),
+            `${JSON.stringify(input, null, 2)}\n`,
+            "utf8",
+          );
+          NODE
+
+          node scripts/publish-toolchain.mjs --input \
+            .toolchain/publication/publication-input.json --output \
+            .toolchain/publication/publication-plan.json
+
+      - name: Create stable prerelease when absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          create_release="$(node -p "JSON.parse(require('fs').readFileSync('.toolchain/publication/publication-plan.json')).createRelease")"
+          if [[ "$create_release" == "true" ]]; then
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Stable Toolchain" \
+              --notes $'# Stable toolchain\n\nManaged by automation\n' \
+              --prerelease \
+              --latest=false
+          fi
+
+      - name: Upload immutable assets - FFmpeg mirror
+        shell: bash
+        run: |
+          set -euo pipefail
+          step="$(node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const plan = JSON.parse(
+            readFileSync(".toolchain/publication/publication-plan.json", "utf8"),
+          );
+          const step = plan.steps.find((item) => item.kind === "upload-ffmpeg");
+          process.stdout.write(step ? JSON.stringify(step) : "");
+          NODE
+          )"
+          if [[ -z "$step" ]]; then
+            echo "FFmpeg mirror upload is not required"
+            exit 0
+          fi
+          action="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).action)' "$step")"
+          name="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).asset.name)' "$step")"
+          if [[ "$action" == "upload" ]]; then
+            gh release upload "$RELEASE_TAG" \
+              ".toolchain/mirror-candidates/${name}#${name}" \
+              --repo "$GITHUB_REPOSITORY"
+          else
+            echo "Reusing verified immutable asset $name"
+          fi
+
+      - name: Verify uploaded FFmpeg asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
+            > .toolchain/publication/stable-release-after-ffmpeg.json
+          node --input-type=module <<'NODE'
+          import { createHash } from "node:crypto";
+          import { readFileSync } from "node:fs";
+          import { verifyUploadedAsset } from "./scripts/publish-toolchain.mjs";
+
+          const plan = JSON.parse(
+            readFileSync(".toolchain/publication/publication-plan.json", "utf8"),
+          );
+          const expected = plan.steps.find(
+            (step) => step.kind === "verify-ffmpeg",
+          )?.asset;
+          if (!expected) {
+            process.stdout.write("FFmpeg mirror verification is not required\n");
+            process.exit(0);
+          }
+          const release = JSON.parse(
+            readFileSync(
+              ".toolchain/publication/stable-release-after-ffmpeg.json",
+              "utf8",
+            ),
+          );
+          const matches = release.assets.filter((asset) => asset.name === expected.name);
+          if (matches.length !== 1) {
+            throw new Error(`Expected one uploaded FFmpeg asset, found ${matches.length}`);
+          }
+          const response = await fetch(matches[0].browser_download_url);
+          if (!response.ok || !response.body) {
+            throw new Error(`Uploaded FFmpeg download failed: ${response.status}`);
+          }
+          const hash = createHash("sha256");
+          let size = 0;
+          for await (const chunk of response.body) {
+            hash.update(chunk);
+            size += chunk.length;
+          }
+          verifyUploadedAsset(
+            { ...matches[0], size, sha256: hash.digest("hex") },
+            expected,
+          );
+          NODE
+
+      - name: Upload immutable metadata assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE' > .toolchain/publication/metadata-operations.tsv
+          import { readFileSync } from "node:fs";
+          const plan = JSON.parse(
+            readFileSync(".toolchain/publication/publication-plan.json", "utf8"),
+          );
+          for (const kind of [
+            "upload-provenance",
+            "upload-manifest",
+            "upload-validation",
+          ]) {
+            const step = plan.steps.find((item) => item.kind === kind);
+            if (step) process.stdout.write(`${kind}\t${step.action}\t${step.asset.name}\n`);
+          }
+          NODE
+
+          while IFS=$'\t' read -r kind action name; do
+            if [[ "$action" != "upload" ]]; then
+              echo "Reusing verified immutable asset $name"
+              continue
+            fi
+            case "$kind" in
+              upload-provenance)
+                path=".toolchain/mirror-candidates/$name"
+                ;;
+              upload-manifest)
+                path="src-tauri/tools-manifest.json"
+                ;;
+              upload-validation)
+                path=".toolchain/validation/toolchain-validation.json"
+                ;;
+              *)
+                echo "Unexpected publication operation: $kind" >&2
+                exit 1
+                ;;
+            esac
+            gh release upload "$RELEASE_TAG" "$path#$name" --repo "$GITHUB_REPOSITORY"
+          done < .toolchain/publication/metadata-operations.tsv
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
+            > .toolchain/publication/stable-release-after-assets.json
+          node --input-type=module <<'NODE'
+          import { createHash } from "node:crypto";
+          import { readFileSync } from "node:fs";
+          import { verifyUploadedAsset } from "./scripts/publish-toolchain.mjs";
+
+          const plan = JSON.parse(
+            readFileSync(".toolchain/publication/publication-plan.json", "utf8"),
+          );
+          const release = JSON.parse(
+            readFileSync(
+              ".toolchain/publication/stable-release-after-assets.json",
+              "utf8",
+            ),
+          );
+          for (const kind of [
+            "upload-provenance",
+            "upload-manifest",
+            "upload-validation",
+          ]) {
+            const expected = plan.steps.find((step) => step.kind === kind)?.asset;
+            if (!expected) continue;
+            const matches = release.assets.filter((asset) => asset.name === expected.name);
+            if (matches.length !== 1) {
+              throw new Error(`Expected one release asset ${expected.name}`);
+            }
+            const response = await fetch(matches[0].browser_download_url);
+            if (!response.ok || !response.body) {
+              throw new Error(`${expected.name} download failed: ${response.status}`);
+            }
+            const hash = createHash("sha256");
+            let size = 0;
+            for await (const chunk of response.body) {
+              hash.update(chunk);
+              size += chunk.length;
+            }
+            verifyUploadedAsset(
+              { ...matches[0], size, sha256: hash.digest("hex") },
+              expected,
+            );
+          }
+          NODE
+
+      - name: Promote stable channel
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from "node:fs";
+          const plan = JSON.parse(
+            readFileSync(".toolchain/publication/publication-plan.json", "utf8"),
+          );
+          const step = plan.steps.find((item) => item.kind === "promote-channel");
+          if (!step) throw new Error("Publication plan is missing channel promotion");
+          writeFileSync(
+            ".toolchain/publication/release-patch.json",
+            `${JSON.stringify({ body: step.releaseBody })}\n`,
+            "utf8",
+          );
+          NODE
+          release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" --jq '.id')"
+          gh api --method PATCH \
+            "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+            --input .toolchain/publication/release-patch.json \
+            > .toolchain/publication/promoted-release.json
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          import { parseChannelRecord } from "./scripts/toolchain/channel.mjs";
+          const plan = JSON.parse(
+            readFileSync(".toolchain/publication/publication-plan.json", "utf8"),
+          );
+          const release = JSON.parse(
+            readFileSync(".toolchain/publication/promoted-release.json", "utf8"),
+          );
+          const expected = plan.steps.find((step) => step.kind === "promote-channel").channel;
+          const actual = parseChannelRecord(release.body);
+          if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+            throw new Error("Promoted channel differs from the publication plan");
+          }
+          NODE
+
+      - name: Update application compatibility manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_tag="$(node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const plan = JSON.parse(
+            readFileSync(".toolchain/publication/publication-plan.json", "utf8"),
+          );
+          const step = plan.steps.find(
+            (item) => item.kind === "update-application-compatibility-manifest",
+          );
+          if (!step) throw new Error("Compatibility manifest operation is missing");
+          process.stdout.write(step.releaseTag);
+          NODE
+          )"
+          gh release upload "$release_tag" \
+            "src-tauri/tools-manifest.json#tools-manifest.json" --clobber \
+            --repo "$GITHUB_REPOSITORY"
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases/latest" \
+            > .toolchain/publication/application-release-after-upload.json
+          node --input-type=module <<'NODE'
+          import { createHash } from "node:crypto";
+          import { readFileSync } from "node:fs";
+          import { verifyUploadedAsset } from "./scripts/publish-toolchain.mjs";
+
+          const plan = JSON.parse(
+            readFileSync(".toolchain/publication/publication-plan.json", "utf8"),
+          );
+          const expected = plan.steps.find(
+            (step) => step.kind === "update-application-compatibility-manifest",
+          );
+          const release = JSON.parse(
+            readFileSync(
+              ".toolchain/publication/application-release-after-upload.json",
+              "utf8",
+            ),
+          );
+          if (release.id !== expected.releaseId || release.tag_name !== expected.releaseTag) {
+            throw new Error("Latest application release changed during publication");
+          }
+          const matches = release.assets.filter(
+            (asset) => asset.name === "tools-manifest.json",
+          );
+          if (matches.length !== 1) {
+            throw new Error("Application compatibility manifest upload is ambiguous");
+          }
+          const response = await fetch(matches[0].browser_download_url);
+          if (!response.ok || !response.body) {
+            throw new Error(`Compatibility manifest download failed: ${response.status}`);
+          }
+          const hash = createHash("sha256");
+          let size = 0;
+          for await (const chunk of response.body) {
+            hash.update(chunk);
+            size += chunk.length;
+          }
+          verifyUploadedAsset(
+            { ...matches[0], size, sha256: hash.digest("hex") },
+            expected.asset,
+          );
+          NODE

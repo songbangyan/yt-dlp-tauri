@@ -27,7 +27,7 @@ test("weekly workflow uses a GitHub App and one managed branch", () => {
   assert.match(workflow, /node scripts\/update-toolchain\.mjs/);
   assert.match(workflow, /npm test/);
   assert.match(workflow, /npm run build/);
-  assert.match(workflow, /check-tool-source-urls\.mjs/);
+  assert.match(workflow, /check-tool-source-urls\.mjs --source-mode upstream/);
   assert.match(workflow, /gh pr (create|edit)/);
 });
 
@@ -51,13 +51,50 @@ test("toolchain automation pins every third-party action to a commit", () => {
     readFileSync(".github/workflows/toolchain-freshness.yml", "utf8"),
     readFileSync(".github/workflows/toolchain-validate.yml", "utf8"),
     readFileSync(".github/workflows/toolchain-canary.yml", "utf8"),
+    readFileSync(".github/workflows/toolchain-publish.yml", "utf8"),
   ];
 
   for (const workflow of workflows) {
     for (const line of workflow.split("\n").filter((item) => /uses:/.test(item))) {
+      if (/uses:\s+\.\//u.test(line)) continue;
       assert.match(line, /uses:\s+[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@[a-f0-9]{40}\s*$/);
     }
   }
+});
+
+test("publisher validates exact main before promoting immutable assets", () => {
+  const path = ".github/workflows/toolchain-publish.yml";
+  assert.equal(existsSync(path), true);
+  const workflow = readFileSync(path, "utf8");
+
+  assert.match(workflow, /^name: Toolchain Publish$/m);
+  assert.match(workflow, /push:\s*\n\s*branches:\s*\[main\]/u);
+  assert.match(workflow, /paths:\s*\n\s*- toolchain-lock\.json\s*\n\s*- src-tauri\/tools-manifest\.json/u);
+  assert.match(workflow, /workflow_dispatch:/u);
+  assert.match(workflow, /group: toolchain-publish/u);
+  assert.match(workflow, /cancel-in-progress: false/u);
+  assert.match(workflow, /^permissions:\s*\n\s*contents: read$/mu);
+  assert.match(workflow, /uses: \.\/\.github\/workflows\/toolchain-validate\.yml/u);
+  assert.match(workflow, /publish:\s*\n\s*name: Publish validated toolchain[\s\S]*?permissions:\s*\n\s*contents: write/u);
+  assert.match(workflow, /github\.ref == 'refs\/heads\/main'/u);
+  assert.match(workflow, /commits\/\$GITHUB_SHA\/pulls/u);
+  assert.match(workflow, /git\/ref\/heads\/main/u);
+  assert.match(workflow, /toolchain-validation-report/u);
+  assert.match(workflow, /toolchain-mirror-candidates/u);
+  assert.match(workflow, /node scripts\/publish-toolchain\.mjs --input/u);
+  assert.match(workflow, /toolchain-stable/u);
+  assert.match(workflow, /--prerelease/u);
+  assert.match(workflow, /releases\/latest/u);
+  assert.match(
+    workflow,
+    /tools-manifest\.json#tools-manifest\.json"\s+--clobber/u,
+  );
+
+  const upload = workflow.indexOf("Upload immutable assets");
+  const verify = workflow.indexOf("Verify uploaded FFmpeg asset");
+  const promote = workflow.indexOf("Promote stable channel");
+  const compatibility = workflow.indexOf("Update application compatibility manifest");
+  assert.ok(upload >= 0 && verify > upload && promote > verify && compatibility > promote);
 });
 
 test("validation workflow uses native targets with read-only permissions", () => {

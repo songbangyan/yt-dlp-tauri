@@ -55,6 +55,36 @@ test("production manifest is generated from the production lock", () => {
   assert.deepEqual(manifest, generateManifest(policy, productionLock));
 });
 
+test("mirror-eligible FFmpeg uses project URLs while validation uses upstream", () => {
+  const mirroredLock = structuredClone(lock);
+  const ffmpegSource = mirroredLock.sources.find((source) => source.id === "ffmpeg-windows");
+  ffmpegSource.redistribution = {
+    mirrorEligible: true,
+    mirrorNameTemplate: "ffmpeg-win-x64-{revision}.zip",
+    provenance: { binarySha256: ffmpegSource.assets[0].sha256 },
+  };
+  const policy = policyFixture();
+  policy.sources.find((source) => source.id === "ffmpeg-windows").redistribution = {
+    releaseRepository: "Chlience/yt-dlp-tauri",
+    releaseTag: "toolchain-stable",
+  };
+
+  const runtime = generateManifest(policy, mirroredLock);
+  const validation = generateManifest(policy, mirroredLock, { sourceMode: "upstream" });
+  const runtimeFfmpeg = runtime.targets
+    .find((target) => target.target === "win-x64")
+    .tools.find((tool) => tool.name === "ffmpeg");
+  const validationFfmpeg = validation.targets
+    .find((target) => target.target === "win-x64")
+    .tools.find((tool) => tool.name === "ffmpeg");
+
+  assert.equal(
+    runtimeFfmpeg.sourceUrl,
+    "https://github.com/Chlience/yt-dlp-tauri/releases/download/toolchain-stable/ffmpeg-win-x64-20260710.3.zip",
+  );
+  assert.equal(validationFfmpeg.sourceUrl, ffmpegSource.assets[0].sourceUrl);
+});
+
 test("toolchain changelog records one revision without app release notes", () => {
   const previous = structuredClone(lock);
   previous.revision = "20260709.1";

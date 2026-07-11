@@ -24,6 +24,8 @@ test("production policy covers every populated manifest target", () => {
   assert.equal(sourceById(policy, "deno").repository, "denoland/deno");
   assert.deepEqual(sourceById(policy, "ffmpeg-windows").redistribution, {
     mode: "conditional-mirror",
+    releaseRepository: "Chlience/yt-dlp-tauri",
+    releaseTag: "toolchain-stable",
     mirrorNameTemplate: "ffmpeg-win-x64-{revision}.zip",
     fallback: "upstream",
     licenseFiles: ["LICENSE", "THIRD-PARTY-NOTICES.md"],

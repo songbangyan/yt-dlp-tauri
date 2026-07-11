@@ -2,6 +2,10 @@
 
 Tool updates are published independently from application releases
 
+## 20260711.2 - 2026-07-11
+
+- `ffmpeg-windows`: `autobuild-2026-06-30-16-38` asset metadata updated
+
 ## 20260711.1 - 2026-07-11
 
 - `deno`: `2.7.14` -> `2.9.2`

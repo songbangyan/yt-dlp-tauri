@@ -111,6 +111,8 @@
       "selection": "previous-complete-month",
       "redistribution": {
         "mode": "conditional-mirror",
+        "releaseRepository": "Chlience/yt-dlp-tauri",
+        "releaseTag": "toolchain-stable",
         "mirrorNameTemplate": "ffmpeg-win-x64-{revision}.zip",
         "fallback": "upstream",
         "licenseFiles": [

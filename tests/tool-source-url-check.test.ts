@@ -1,10 +1,32 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
   checkToolSourceUrl,
   evaluateToolSourceUrls,
+  selectSourceCheckManifest,
 } from "../scripts/check-tool-source-urls.mjs";
+
+test("pre-publication source checks use immutable upstream URLs", () => {
+  const manifest = JSON.parse(readFileSync("src-tauri/tools-manifest.json", "utf8"));
+  const policy = JSON.parse(readFileSync("toolchain-policy.json", "utf8"));
+  const lock = JSON.parse(readFileSync("toolchain-lock.json", "utf8"));
+
+  const selected = selectSourceCheckManifest({
+    sourceMode: "upstream",
+    manifest,
+    policy,
+    lock,
+  });
+  const ffmpegUrls = selected.targets
+    .find((target) => target.target === "win-x64")
+    .tools.filter((tool) => ["ffmpeg", "ffprobe"].includes(tool.name))
+    .map((tool) => tool.sourceUrl);
+
+  assert.ok(ffmpegUrls.every((url) => url.includes("yt-dlp/FFmpeg-Builds")));
+  assert.ok(ffmpegUrls.every((url) => !url.includes("toolchain-stable")));
+});
 
 test("tool source URL check reports unavailable manifest URLs with target and tool names", async () => {
   const manifest = {
