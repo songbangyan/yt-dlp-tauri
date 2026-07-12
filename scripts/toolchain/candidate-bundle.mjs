@@ -165,7 +165,7 @@ export function candidateAssetsForRevision(lockValue) {
     .sort((left, right) => compareStrings(left.sha256, right.sha256));
 }
 
-function approvedUrl(value, approvedHosts, label) {
+function approvedUrl(value, approvedHosts, label, { allowQuery = false } = {}) {
   let url;
   try {
     url = new URL(value);
@@ -176,7 +176,7 @@ function approvedUrl(value, approvedHosts, label) {
     url.protocol !== "https:" ||
     url.username ||
     url.password ||
-    url.search ||
+    (!allowQuery && url.search) ||
     url.hash
   ) {
     throw new Error(`${label} must be an immutable HTTPS URL`);
@@ -219,7 +219,9 @@ async function downloadCandidateAsset({
     throw new Error(`Candidate download failed with HTTP ${response?.status ?? "unknown"}: ${sourceUrl}`);
   }
   if (response.url) {
-    approvedUrl(response.url, approvedHosts, "Candidate final URL");
+    approvedUrl(response.url, approvedHosts, "Candidate final URL", {
+      allowQuery: true,
+    });
   }
   if (!response.body) throw new Error(`Candidate download returned no body: ${sourceUrl}`);
 

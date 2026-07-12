@@ -252,6 +252,49 @@ test("candidate preparation rejects unapproved source hosts", async () => {
   });
 });
 
+test("candidate preparation rejects mutable source URLs", async () => {
+  await withTempDirectory(async (directory) => {
+    const { lock, policy, fetchImpl } = fixture();
+    lock.sources[0].assets[0].sourceUrl =
+      "https://github.com/upstream/tool/releases/download/v1/tool.exe?token=temporary";
+
+    await assert.rejects(
+      prepareCandidateBundle({
+        policy,
+        lock,
+        outputDirectory: directory,
+        fetchImpl,
+        context,
+      }),
+      /immutable HTTPS URL/u,
+    );
+  });
+});
+
+test("candidate preparation accepts signed GitHub CDN redirects", async () => {
+  await withTempDirectory(async (directory) => {
+    const { lock, policy, fetchImpl } = fixture();
+    policy.approvedHosts.push("release-assets.githubusercontent.com");
+
+    const index = await prepareCandidateBundle({
+      policy,
+      lock,
+      outputDirectory: directory,
+      fetchImpl: async (...args: Parameters<typeof fetchImpl>) => {
+        const response = await fetchImpl(...args);
+        Object.defineProperty(response, "url", {
+          value:
+            "https://release-assets.githubusercontent.com/github-production-release-asset/tool?sp=r&sig=temporary",
+        });
+        return response;
+      },
+      context,
+    });
+
+    assert.equal(index.assets.length, 2);
+  });
+});
+
 test("candidate CLIs parse exact paths and trust context", () => {
   assert.deepEqual(
     parsePrepareCandidateArgs([
