@@ -45,6 +45,7 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 struct AppState {
     download_directory: String,
     tools_root: String,
+    toolchain_revision: Option<String>,
     cookies_file: Option<String>,
 }
 
@@ -1195,9 +1196,12 @@ fn was_cancel_requested(state: &DownloadProcessState) -> bool {
 }
 
 fn build_app_state(tools_root: String) -> Result<AppState, String> {
+    let target = current_tool_target()?;
     Ok(AppState {
         download_directory: download_directory()?.display().to_string(),
         tools_root,
+        toolchain_revision: read_active_state(&app_data_root()?, &target)?
+            .map(|state| state.revision),
         cookies_file: cookies_file()?.map(|path| path.display().to_string()),
     })
 }
