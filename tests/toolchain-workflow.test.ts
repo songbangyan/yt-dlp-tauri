@@ -284,7 +284,7 @@ test("stable Canary is daily, stateful, deduplicated, and non-blocking", () => {
   assert.match(workflow, /contents: read/);
   assert.match(workflow, /issues: write/);
   assert.match(workflow, /toolchain-stable/);
-  assert.match(workflow, /scripts\/toolchain\/channel\.mjs/);
+  assert.match(workflow, /scripts\/toolchain\/archive-channel\.mjs/);
   assert.match(workflow, /scripts\/toolchain\/canary\.mjs/);
   assert.match(workflow, /canary-state/);
   assert.match(workflow, /actions\/artifacts\?name=canary-state/);
@@ -292,4 +292,16 @@ test("stable Canary is daily, stateful, deduplicated, and non-blocking", () => {
   assert.match(workflow, /state: "open"/);
   assert.match(workflow, /state: "closed"/);
   assert.doesNotMatch(workflow, /pull_request_target|secrets: inherit/);
+});
+
+test("stable consumers resolve the archive channel and revision release", () => {
+  for (const path of [
+    ".github/workflows/toolchain-canary.yml",
+    ".github/workflows/toolchain-validate.yml",
+  ]) {
+    const workflow = readFileSync(path, "utf8");
+    assert.match(workflow, /Chlience\/yt-dlp-tauri-toolchain/u);
+    assert.match(workflow, /releaseTag/u);
+    assert.match(workflow, /immutable/u);
+  }
 });

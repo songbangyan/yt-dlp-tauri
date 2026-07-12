@@ -45,45 +45,36 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
+          ARCHIVE_REPOSITORY: Chlience/yt-dlp-tauri-toolchain
+          ARCHIVE_CHANNEL_TAG: toolchain-stable
         run: |
           set -euo pipefail
           mkdir -p .canary
           node --input-type=module <<'NODE'
-          import { createHash } from "node:crypto";
           import { appendFile, writeFile } from "node:fs/promises";
-          import {
-            parseChannelRecord,
-            selectManifestAsset,
-          } from "./scripts/toolchain/channel.mjs";
+          import { fetchStableToolchainManifest } from "./scripts/toolchain/archive-channel.mjs";
 
-          const headers = {
-            Accept: "application/vnd.github+json",
-            Authorization: `Bearer ${process.env.GH_TOKEN}`,
-            "User-Agent": "yt-dlp-tauri-toolchain-canary",
-            "X-GitHub-Api-Version": "2022-11-28",
-          };
-          const api = `https://api.github.com/repos/${process.env.GH_REPO}`;
-          const releaseResponse = await fetch(`${api}/releases/tags/toolchain-stable`, { headers });
-          if (releaseResponse.status === 404) {
+          if (process.env.ARCHIVE_CHANNEL_TAG !== "toolchain-stable") {
+            throw new Error("Unexpected archive channel tag");
+          }
+          const stable = await fetchStableToolchainManifest({
+            token: process.env.GH_TOKEN,
+            repository: process.env.ARCHIVE_REPOSITORY,
+            userAgent: "yt-dlp-tauri-toolchain-canary",
+          });
+          if (stable.status === "missing") {
             await appendFile(process.env.GITHUB_OUTPUT, "fallback=true\n", "utf8");
-            throw new Error("Stable toolchain release has not been created yet");
+          } else {
+            if (stable.release.immutable !== true) {
+              throw new Error(`Archive release ${stable.channel.releaseTag} is mutable`);
+            }
+            await writeFile(".canary/stable-manifest.json", stable.bytes);
+            await appendFile(
+              process.env.GITHUB_OUTPUT,
+              `fallback=false\nrelease_tag=${stable.channel.releaseTag}\n`,
+              "utf8",
+            );
           }
-          if (!releaseResponse.ok) {
-            throw new Error(`Stable toolchain release lookup failed: ${releaseResponse.status}`);
-          }
-          const release = await releaseResponse.json();
-          const channel = parseChannelRecord(release.body ?? "");
-          const asset = selectManifestAsset(release, channel);
-          const manifestResponse = await fetch(asset.browser_download_url, { headers });
-          if (!manifestResponse.ok) {
-            throw new Error(`Stable manifest download failed: ${manifestResponse.status}`);
-          }
-          const bytes = Buffer.from(await manifestResponse.arrayBuffer());
-          const digest = createHash("sha256").update(bytes).digest("hex");
-          if (digest !== channel.sha256) throw new Error("Stable manifest SHA-256 mismatch");
-          await writeFile(".canary/stable-manifest.json", bytes);
-          await appendFile(process.env.GITHUB_OUTPUT, "fallback=false\n", "utf8");
           NODE
 
       - name: Use checked-in manifest before first promotion

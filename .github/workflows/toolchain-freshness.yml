@@ -49,6 +49,8 @@ jobs:
       - name: Check released toolchain sources
         id: freshness
         continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/check-toolchain-freshness.mjs --json-output freshness.json
 
       - name: Select emergency sources
@@ -70,7 +72,7 @@ jobs:
           fi
 
           if jq -e '.ok == false' freshness.json > /dev/null && [ "$(jq 'length' <<<"$sources")" -eq 0 ]; then
-            jq -r '.problems[]' freshness.json >&2
+            jq -r '.problems[] | "[\(.class)] \(.message)"' freshness.json >&2
             exit 1
           fi
           printf 'sources=%s\n' "$sources" >> "$GITHUB_OUTPUT"
@@ -137,6 +139,8 @@ jobs:
 
       - name: Verify repaired source
         if: steps.update.outputs.changed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
         run: |
           set -euo pipefail
           node scripts/check-toolchain-freshness.mjs --json-output repaired-freshness.json || true

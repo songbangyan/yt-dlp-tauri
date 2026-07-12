@@ -37,9 +37,11 @@ test("freshness maps a shared ffmpeg URL failure to one source unit", async () =
 
   assert.deepEqual(result.failedSourceIds, ["ffmpeg-windows"]);
   assert.equal(
-    result.problems.filter((problem) => problem.includes("ffmpeg-windows")).length,
+    result.problems.filter((problem) => problem.message.includes("ffmpeg-windows"))
+      .length,
     1,
   );
+  assert.equal(result.problems[0].class, "upstream-discovery");
   assert.equal(
     checkedUrls.filter((url) => url.includes("FFmpeg-Builds")).length,
     1,
@@ -84,7 +86,8 @@ test("freshness attributes a mirrored runtime URL to its lock source", async () 
   }));
 
   assert.deepEqual(result.failedSourceIds, ["ffmpeg-windows"]);
-  assert.match(result.problems[0], /toolchain-stable\/ffmpeg-win\.zip/);
+  assert.equal(result.problems[0].class, "archive-integrity");
+  assert.match(result.problems[0].message, /toolchain-stable\/ffmpeg-win\.zip/);
 });
 
 test("freshness reports a manifest tool missing from its locked source", async () => {
@@ -100,5 +103,24 @@ test("freshness reports a manifest tool missing from its locked source", async (
 
   assert.equal(result.ok, false);
   assert.deepEqual(result.failedSourceIds, ["ffmpeg-windows"]);
-  assert.match(result.problems[0], /manifest is missing win-x64\/ffprobe/);
+  assert.equal(result.problems[0].class, "archive-integrity");
+  assert.match(result.problems[0].message, /manifest is missing win-x64\/ffprobe/);
+});
+
+test("freshness classifies archive failures separately", async () => {
+  const result = await evaluateToolchainFreshness(
+    lockFixture(),
+    manifestFixture(),
+    async () => ({ ok: true, status: 200, statusText: "OK" }),
+    {
+      archiveObservation: {
+        ok: false,
+        class: "archive-unavailable",
+        message: "stable archive returned HTTP 503",
+      },
+    },
+  );
+
+  assert.equal(result.problems[0].class, "archive-unavailable");
+  assert.deepEqual(result.failedSourceIds, []);
 });
