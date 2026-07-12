@@ -63,32 +63,32 @@ function asset({
 }
 
 function fixture() {
-  const shared = new TextEncoder().encode("shared-macos-tool");
+  const shared = new TextEncoder().encode("shared-windows-tool");
   const windows = new TextEncoder().encode("windows-tool-archive");
-  const sharedUrl = "https://github.com/upstream/tool/releases/download/v1/tool-macos";
+  const sharedUrl = "https://github.com/upstream/tool/releases/download/v1/tool.exe";
   const windowsUrl =
     "https://github.com/upstream/tool/releases/download/v1/tool-windows.zip";
   const lock = {
     schemaVersion: 2,
     revision: REVISION,
     generatedAtUtc: "2026-07-12T00:00:00.000Z",
-    targets: ["macos-arm64", "macos-x64", "win-x64"],
+    targets: ["win-x64"],
     sources: [
       {
         id: "tool",
         version: "v1",
         assets: [
           asset({
-            target: "macos-arm64",
+            target: "win-x64",
             sourceUrl: sharedUrl,
-            assetName: "tool-macos",
+            assetName: "tool.exe",
             bytes: shared,
             kind: "file",
           }),
           asset({
-            target: "macos-x64",
+            target: "win-x64",
             sourceUrl: sharedUrl,
-            assetName: "tool-macos",
+            assetName: "tool.exe",
             bytes: shared,
             kind: "file",
           }),
@@ -138,15 +138,15 @@ const context = {
   headSha: "a".repeat(40),
 };
 
-test("production revision contains ten unique candidate byte objects", () => {
+test("production revision contains three unique candidate byte objects", () => {
   const lock = JSON.parse(readFileSync("toolchain-lock.json", "utf8"));
   const assets = candidateAssetsForRevision(lock);
 
-  assert.equal(assets.length, 10);
-  assert.equal(new Set(assets.map((entry) => entry.sha256)).size, 10);
+  assert.equal(assets.length, 3);
+  assert.equal(new Set(assets.map((entry) => entry.sha256)).size, 3);
   assert.equal(
     assets.reduce((count, entry) => count + entry.references.length, 0),
-    11,
+    3,
   );
 });
 

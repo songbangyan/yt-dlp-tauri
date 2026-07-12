@@ -205,8 +205,7 @@ test("validation workflow uses native targets with read-only permissions", () =>
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /workflow_call:/);
   assert.match(workflow, /windows-latest/);
-  assert.match(workflow, /macos-15-intel/);
-  assert.match(workflow, /macos-15/);
+  assert.doesNotMatch(workflow, /macos|darwin|apple/iu);
   assert.match(workflow, /name: toolchain-validation/);
   assert.match(workflow, /toolchain-validation-report/);
   assert.match(workflow, /toolchain-candidate-/u);
@@ -268,6 +267,8 @@ test("validation accepts a legacy baseline without a toolchain lock", () => {
     /const baselineLockJson = tryShowBaseline\("toolchain-lock\.json"\)/u,
   );
   assert.match(workflow, /baselineLockJson \?\? "null\\n"/u);
+  assert.match(workflow, /candidateManifest\.targets\.map\(\(candidateTarget\)/u);
+  assert.doesNotMatch(workflow, /Candidate is missing \$\{baselineTarget\.target\}/u);
 });
 
 test("repository has one toolchain updater", () => {

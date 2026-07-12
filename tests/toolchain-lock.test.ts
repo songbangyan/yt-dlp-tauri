@@ -16,10 +16,6 @@ const urls = {
     "https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp.exe",
   ffmpegWindows:
     "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-06-30-16-38/ffmpeg-N-125200-gabcdef1234-win64-gpl.zip",
-  ffmpegMac:
-    "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffmpeg.zip",
-  ffprobeMac:
-    "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffprobe.zip",
 };
 
 function archivePolicy() {
@@ -41,8 +37,8 @@ function redistributionPolicy() {
 function fixturePolicy() {
   return {
     schemaVersion: 2,
-    targets: ["win-x64", "macos-arm64"],
-    approvedHosts: ["github.com", "ffmpeg.martin-riedl.de"],
+    targets: ["win-x64"],
+    approvedHosts: ["github.com"],
     sources: [
       {
         id: "yt-dlp",
@@ -90,41 +86,6 @@ function fixturePolicy() {
                 path: "Tools/win-x64/ffmpeg/bin/ffmpeg.exe",
                 archivePathSuffix: "bin/ffmpeg.exe",
                 licenseNotes: "Windows FFmpeg test license",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "ffmpeg-macos-arm64",
-        adapter: "redirect-release",
-        selection: "latest-redirect",
-        archive: archivePolicy(),
-        redistribution: redistributionPolicy(),
-        assets: [
-          {
-            target: "macos-arm64",
-            url: "https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/ffprobe.zip",
-            kind: "zip",
-            members: [
-              {
-                tool: "ffprobe",
-                path: "Tools/macos-arm64/ffmpeg/bin/ffprobe",
-                archivePathSuffix: "ffprobe",
-                licenseNotes: "macOS FFprobe test license",
-              },
-            ],
-          },
-          {
-            target: "macos-arm64",
-            url: "https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/ffmpeg.zip",
-            kind: "zip",
-            members: [
-              {
-                tool: "ffmpeg",
-                path: "Tools/macos-arm64/ffmpeg/bin/ffmpeg",
-                archivePathSuffix: "ffmpeg",
-                licenseNotes: "macOS FFmpeg test license",
               },
             ],
           },
@@ -257,20 +218,6 @@ const inspections = {
       },
     ],
   },
-  [urls.ffmpegMac]: {
-    size: 10,
-    sha256: "e".repeat(64),
-    members: [
-      { tool: "ffmpeg", archivePath: "ffmpeg", size: 4, sha256: "1".repeat(64) },
-    ],
-  },
-  [urls.ffprobeMac]: {
-    size: 11,
-    sha256: "f".repeat(64),
-    members: [
-      { tool: "ffprobe", archivePath: "ffprobe", size: 5, sha256: "2".repeat(64) },
-    ],
-  },
 };
 
 function fixtureOptions(overrides = {}) {
@@ -279,15 +226,6 @@ function fixtureOptions(overrides = {}) {
     now: new Date("2026-07-11T12:00:00Z"),
     tempDirectory: "fixture-temp",
     githubAdapter: async (repository) => structuredClone(releasesByRepository[repository]),
-    redirectAdapter: async (url) => {
-      const name = new URL(url).pathname.endsWith("ffprobe.zip") ? "ffprobe" : "ffmpeg";
-      const resolvedUrl = name === "ffprobe" ? urls.ffprobeMac : urls.ffmpegMac;
-      return {
-        url: resolvedUrl,
-        version: "8.1.2",
-        checksumUrl: `${resolvedUrl}.sha256`,
-      };
-    },
     inspectAsset: async ({ url }) => ({
       ...structuredClone(inspections[String(url)]),
       downloadPath: "/tmp/transient-download",
@@ -311,7 +249,7 @@ test("resolver groups ffmpeg and ffprobe from one Windows archive", async () => 
   const lock = await resolveToolchainLock(fixtureOptions());
   const source = lock.sources.find((item) => item.id === "ffmpeg-windows");
 
-  assert.deepEqual(lock.targets, ["macos-arm64", "win-x64"]);
+  assert.deepEqual(lock.targets, ["win-x64"]);
   assert.equal(source.assets.length, 1);
   assert.deepEqual(
     source.assets[0].members.map((member) => member.tool),
@@ -381,22 +319,4 @@ test("a changed executable digest creates a revision for the current UTC day", a
 
   assert.equal(lock.revision, "20260711.1");
   assert.equal(lock.generatedAtUtc, "2026-07-11T12:00:00.000Z");
-});
-
-test("one redirect source cannot combine assets from different releases", async () => {
-  const redirectAdapter = fixtureOptions().redirectAdapter;
-  await assert.rejects(
-    () =>
-      resolveToolchainLock(
-        fixtureOptions({
-          redirectAdapter: async (url, options) => {
-            const result = await redirectAdapter(url, options);
-            return String(url).endsWith("ffprobe.zip")
-              ? { ...result, version: "8.1.3" }
-              : result;
-          },
-        }),
-      ),
-    /ffmpeg-macos-arm64.*multiple release versions/,
-  );
 });

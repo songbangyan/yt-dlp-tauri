@@ -1155,12 +1155,12 @@ mod tests {
     ) -> StagedToolchain {
         let asset_root = base.join(format!("candidate-{marker}"));
         let target = ManifestTarget {
-            target: "macos-x64".to_string(),
+            target: "win-x64".to_string(),
             tools: vec![
                 script_tool(
                     &asset_root,
                     "yt-dlp",
-                    "Tools/macos-x64/yt-dlp/yt-dlp",
+                    "Tools/win-x64/yt-dlp/yt-dlp.exe",
                     &format!(
                         "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo yt-dlp-{marker}; fi\nexit 0\n"
                     ),
@@ -1168,19 +1168,19 @@ mod tests {
                 script_tool(
                     &asset_root,
                     "ffmpeg",
-                    "Tools/macos-x64/ffmpeg/bin/ffmpeg",
+                    "Tools/win-x64/ffmpeg/bin/ffmpeg.exe",
                     "#!/bin/sh\nif [ \"$1\" = \"-version\" ]; then echo ffmpeg-fixture; exit 0; fi\nfor output; do :; done\nprintf media > \"$output\"\n",
                 ),
                 script_tool(
                     &asset_root,
                     "ffprobe",
-                    "Tools/macos-x64/ffmpeg/bin/ffprobe",
+                    "Tools/win-x64/ffmpeg/bin/ffprobe.exe",
                     "#!/bin/sh\nif [ \"$1\" = \"-version\" ]; then echo ffprobe-fixture; else echo video; fi\n",
                 ),
                 script_tool(
                     &asset_root,
                     "deno",
-                    "Tools/macos-x64/deno/deno",
+                    "Tools/win-x64/deno/deno.exe",
                     "#!/bin/sh\necho deno-fixture\n",
                 ),
             ],

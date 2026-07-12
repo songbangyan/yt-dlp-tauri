@@ -1,11 +1,7 @@
 const SCHEMA_VERSION = 1;
-const REQUIRED_TARGETS = ["macos-arm64", "macos-x64", "win-x64"];
+const REQUIRED_TARGETS = ["win-x64"];
 const REQUIRED_TOOLS = ["deno", "ffmpeg", "ffprobe", "yt-dlp"];
-const TARGET_ARCHITECTURES = new Map([
-  ["macos-arm64", "arm64"],
-  ["macos-x64", "x64"],
-  ["win-x64", "x64"],
-]);
+const TARGET_ARCHITECTURES = new Map([["win-x64", "x64"]]);
 const REVISION_PATTERN = /^[0-9]{8}\.[1-9][0-9]*$/u;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 const COMMIT_SHA_PATTERN = /^[a-f0-9]{40}$/u;

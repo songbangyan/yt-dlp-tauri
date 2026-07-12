@@ -47,8 +47,10 @@ test("media generation uses synthetic video and audio inputs", () => {
 
 test("native target mapping covers every supported runner", () => {
   assert.equal(nativeToolchainTarget("win32", "x64"), "win-x64");
-  assert.equal(nativeToolchainTarget("darwin", "x64"), "macos-x64");
-  assert.equal(nativeToolchainTarget("darwin", "arm64"), "macos-arm64");
+  assert.throws(
+    () => nativeToolchainTarget("darwin", "x64"),
+    /Unsupported native toolchain target/,
+  );
   assert.throws(
     () => nativeToolchainTarget("linux", "x64"),
     /Unsupported native toolchain target/,
@@ -92,7 +94,7 @@ test("compatibility suite runs generation, download, and probe in order", async 
   const workRoot = await mkdtemp(join(tmpdir(), "yt-dlp-tauri-suite-"));
   const commands: string[] = [];
   const smokeReport = {
-    target: "macos-arm64",
+    target: "win-x64",
     ffmpegDirectory: "/tools/ffmpeg/bin",
     denoBinary: "/tools/deno",
     tools: [

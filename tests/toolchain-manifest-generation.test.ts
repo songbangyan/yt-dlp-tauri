@@ -14,8 +14,8 @@ const lock = JSON.parse(
 function policyFixture() {
   return {
     schemaVersion: 2,
-    targets: ["win-x64", "macos-arm64"],
-    approvedHosts: ["github.com", "ffmpeg.martin-riedl.de"],
+    targets: ["win-x64"],
+    approvedHosts: ["github.com"],
     sources: lock.sources.map((source) => ({
       id: source.id,
       archive: {
@@ -36,7 +36,7 @@ test("manifest generation uses extracted hashes and fixed source URLs", () => {
   assert.equal(manifest.retrievedAtUtc, "2026-07-10T04:00:00.000Z");
   assert.deepEqual(
     manifest.targets.map((target) => target.target),
-    ["win-x64", "macos-arm64"],
+    ["win-x64"],
   );
   assert.deepEqual(
     manifest.targets[0].tools.map((tool) => tool.name),

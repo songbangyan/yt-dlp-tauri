@@ -22,18 +22,15 @@ const redistribution = {
 test("production policy covers every populated manifest target", () => {
   const policy = readToolchainPolicy("toolchain-policy.json");
 
-  assert.deepEqual(policy.targets, ["win-x64", "macos-x64", "macos-arm64"]);
+  assert.deepEqual(policy.targets, ["win-x64"]);
   assert.deepEqual(
     policy.sources.map((source) => source.id),
-    [
-      "yt-dlp",
-      "deno",
-      "ffmpeg-windows",
-      "ffmpeg-macos-x64",
-      "ffmpeg-macos-arm64",
-    ],
+    ["yt-dlp", "deno", "ffmpeg-windows"],
   );
   assert.equal(sourceById(policy, "deno").repository, "denoland/deno");
+  assert.deepEqual(sourceById(policy, "deno").redistribution.licenseFiles, [
+    "third-party/deno/LICENSE.md",
+  ]);
   for (const source of policy.sources) {
     assert.deepEqual(source.archive, archive);
     assert.ok(source.redistribution.requiredEvidence.length > 0);
@@ -54,7 +51,7 @@ test("production policy covers every populated manifest target", () => {
   });
 });
 
-test("policy rejects an unapproved source host", () => {
+test("policy rejects the retired redirect source adapter", () => {
   assert.throws(
     () =>
       validateToolchainPolicy({
@@ -79,7 +76,7 @@ test("policy rejects an unapproved source host", () => {
           },
         ],
       }),
-    /unapproved host evil\.test/,
+    /unsupported adapter redirect-release/,
   );
 });
 

@@ -1,16 +1,13 @@
 {
   "schemaVersion": 2,
   "targets": [
-    "win-x64",
-    "macos-x64",
-    "macos-arm64"
+    "win-x64"
   ],
   "approvedHosts": [
     "api.github.com",
     "github.com",
     "release-assets.githubusercontent.com",
-    "objects.githubusercontent.com",
-    "ffmpeg.martin-riedl.de"
+    "objects.githubusercontent.com"
   ],
   "sources": [
     {
@@ -49,30 +46,6 @@
               "licenseNotes": "Official Windows standalone executable; the combined PyInstaller work is GPLv3+."
             }
           ]
-        },
-        {
-          "target": "macos-x64",
-          "assetName": "yt-dlp_macos",
-          "kind": "file",
-          "members": [
-            {
-              "tool": "yt-dlp",
-              "path": "Tools/macos-x64/yt-dlp/yt-dlp",
-              "licenseNotes": "Official macOS standalone executable; the combined PyInstaller work is GPLv3+."
-            }
-          ]
-        },
-        {
-          "target": "macos-arm64",
-          "assetName": "yt-dlp_macos",
-          "kind": "file",
-          "members": [
-            {
-              "tool": "yt-dlp",
-              "path": "Tools/macos-arm64/yt-dlp/yt-dlp",
-              "licenseNotes": "Official macOS standalone executable; the combined PyInstaller work is GPLv3+."
-            }
-          ]
         }
       ]
     },
@@ -87,7 +60,9 @@
         "assetNameTemplate": "{source}-{version}-{assetStem}-{sha256Prefix}{extension}"
       },
       "redistribution": {
-        "licenseFiles": [],
+        "licenseFiles": [
+          "third-party/deno/LICENSE.md"
+        ],
         "requiredEvidence": [
           "binary-release",
           "source-revision",
@@ -108,32 +83,6 @@
               "tool": "deno",
               "path": "Tools/win-x64/deno/deno.exe",
               "archivePathSuffix": "deno.exe",
-              "licenseNotes": "Deno is distributed under the MIT license and provides the JavaScript runtime for yt-dlp EJS support."
-            }
-          ]
-        },
-        {
-          "target": "macos-x64",
-          "assetName": "deno-x86_64-apple-darwin.zip",
-          "kind": "zip",
-          "members": [
-            {
-              "tool": "deno",
-              "path": "Tools/macos-x64/deno/deno",
-              "archivePathSuffix": "deno",
-              "licenseNotes": "Deno is distributed under the MIT license and provides the JavaScript runtime for yt-dlp EJS support."
-            }
-          ]
-        },
-        {
-          "target": "macos-arm64",
-          "assetName": "deno-aarch64-apple-darwin.zip",
-          "kind": "zip",
-          "members": [
-            {
-              "tool": "deno",
-              "path": "Tools/macos-arm64/deno/deno",
-              "archivePathSuffix": "deno",
               "licenseNotes": "Deno is distributed under the MIT license and provides the JavaScript runtime for yt-dlp EJS support."
             }
           ]
@@ -185,118 +134,6 @@
               "path": "Tools/win-x64/ffmpeg/bin/ffprobe.exe",
               "archivePathSuffix": "bin/ffprobe.exe",
               "licenseNotes": "Distributed from the same GPL FFmpeg build as ffmpeg.exe."
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "ffmpeg-macos-x64",
-      "adapter": "redirect-release",
-      "selection": "latest-redirect",
-      "archive": {
-        "enabled": true,
-        "repository": "Chlience/yt-dlp-tauri-toolchain",
-        "assetNameTemplate": "{source}-{version}-{assetStem}-{sha256Prefix}{extension}"
-      },
-      "redistribution": {
-        "licenseFiles": [
-          "LICENSE",
-          "THIRD-PARTY-NOTICES.md"
-        ],
-        "requiredEvidence": [
-          "official-checksum",
-          "binary-release",
-          "source-revision",
-          "build-revision",
-          "source-license",
-          "third-party-notices"
-        ],
-        "noticeFiles": [
-          "THIRD-PARTY-NOTICES.md",
-          "docs/ffmpeg-redistribution.md"
-        ]
-      },
-      "assets": [
-        {
-          "target": "macos-x64",
-          "url": "https://ffmpeg.martin-riedl.de/redirect/latest/macos/amd64/release/ffmpeg.zip",
-          "kind": "zip",
-          "members": [
-            {
-              "tool": "ffmpeg",
-              "path": "Tools/macos-x64/ffmpeg/bin/ffmpeg",
-              "archivePathSuffix": "ffmpeg",
-              "licenseNotes": "Static release build for macOS Intel from Martin Riedl's FFmpeg build server."
-            }
-          ]
-        },
-        {
-          "target": "macos-x64",
-          "url": "https://ffmpeg.martin-riedl.de/redirect/latest/macos/amd64/release/ffprobe.zip",
-          "kind": "zip",
-          "members": [
-            {
-              "tool": "ffprobe",
-              "path": "Tools/macos-x64/ffmpeg/bin/ffprobe",
-              "archivePathSuffix": "ffprobe",
-              "licenseNotes": "Static release build for macOS Intel from Martin Riedl's FFmpeg build server."
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "ffmpeg-macos-arm64",
-      "adapter": "redirect-release",
-      "selection": "latest-redirect",
-      "archive": {
-        "enabled": true,
-        "repository": "Chlience/yt-dlp-tauri-toolchain",
-        "assetNameTemplate": "{source}-{version}-{assetStem}-{sha256Prefix}{extension}"
-      },
-      "redistribution": {
-        "licenseFiles": [
-          "LICENSE",
-          "THIRD-PARTY-NOTICES.md"
-        ],
-        "requiredEvidence": [
-          "official-checksum",
-          "binary-release",
-          "source-revision",
-          "build-revision",
-          "source-license",
-          "third-party-notices"
-        ],
-        "noticeFiles": [
-          "THIRD-PARTY-NOTICES.md",
-          "docs/ffmpeg-redistribution.md"
-        ]
-      },
-      "assets": [
-        {
-          "target": "macos-arm64",
-          "url": "https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/ffmpeg.zip",
-          "kind": "zip",
-          "members": [
-            {
-              "tool": "ffmpeg",
-              "path": "Tools/macos-arm64/ffmpeg/bin/ffmpeg",
-              "archivePathSuffix": "ffmpeg",
-              "licenseNotes": "Static release build for macOS Apple Silicon from Martin Riedl's FFmpeg build server."
-            }
-          ]
-        },
-        {
-          "target": "macos-arm64",
-          "url": "https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/ffprobe.zip",
-          "kind": "zip",
-          "members": [
-            {
-              "tool": "ffprobe",
-              "path": "Tools/macos-arm64/ffmpeg/bin/ffprobe",
-              "archivePathSuffix": "ffprobe",
-              "licenseNotes": "Static release build for macOS Apple Silicon from Martin Riedl's FFmpeg build server."
             }
           ]
         }

@@ -15,8 +15,6 @@ on:
           - yt-dlp
           - deno
           - ffmpeg-windows
-          - ffmpeg-macos-x64
-          - ffmpeg-macos-arm64
       reason:
         description: Compatibility or security reason
         required: false

@@ -35,12 +35,12 @@ function policy() {
   };
 }
 
-function macAsset(target: string) {
+function sharedAsset() {
   return {
-    target,
-    assetName: "yt-dlp_macos",
+    target: "win-x64",
+    assetName: "yt-dlp.exe",
     sourceUrl:
-      "https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp_macos",
+      "https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp.exe",
     kind: "file",
     size: 42,
     sha256: DIGEST_A,
@@ -53,12 +53,12 @@ function lock(revision = "20260712.1") {
     schemaVersion: 2,
     revision,
     generatedAtUtc: "2026-07-12T00:00:00.000Z",
-    targets: ["macos-arm64", "macos-x64"],
+    targets: ["win-x64"],
     sources: [
       {
         id: "yt-dlp",
         version: "2026.07.04",
-        assets: [macAsset("macos-arm64"), macAsset("macos-x64")],
+        assets: [sharedAsset(), sharedAsset()],
       },
     ],
   };
@@ -110,13 +110,13 @@ test("shared upstream bytes receive one archive descriptor", () => {
     currentLock: null,
     candidateLock: lock(),
   });
-  const [arm, intel] = result.sources[0].assets;
+  const [first, second] = result.sources[0].assets;
 
-  assert.deepEqual(arm.archive, intel.archive);
-  assert.equal(arm.archive.releaseTag, "toolchain-20260712.1");
-  assert.equal(arm.archive.repository, ARCHIVE_REPOSITORY);
-  assert.equal(arm.archive.size, 42);
-  assert.equal(arm.archive.sha256, DIGEST_A);
+  assert.deepEqual(first.archive, second.archive);
+  assert.equal(first.archive.releaseTag, "toolchain-20260712.1");
+  assert.equal(first.archive.repository, ARCHIVE_REPOSITORY);
+  assert.equal(first.archive.size, 42);
+  assert.equal(first.archive.sha256, DIGEST_A);
 });
 
 test("unchanged bytes preserve their historical descriptor", () => {
@@ -164,7 +164,7 @@ test("archive descriptors require exact repository, size, and digest", () => {
   const descriptor = {
     repository: ARCHIVE_REPOSITORY,
     releaseTag: "toolchain-20260712.1",
-    assetName: "yt-dlp-2026.07.04-yt-dlp_macos-aaaaaaaaaaaaaaaa",
+    assetName: "yt-dlp-2026.07.04-yt-dlp-aaaaaaaaaaaaaaaa.exe",
     size: 42,
     sha256: DIGEST_A,
   };
@@ -187,7 +187,7 @@ test("archive descriptors require exact repository, size, and digest", () => {
   );
   assert.equal(
     archiveDescriptorUrl(descriptor),
-    "https://github.com/Chlience/yt-dlp-tauri-toolchain/releases/download/toolchain-20260712.1/yt-dlp-2026.07.04-yt-dlp_macos-aaaaaaaaaaaaaaaa",
+    "https://github.com/Chlience/yt-dlp-tauri-toolchain/releases/download/toolchain-20260712.1/yt-dlp-2026.07.04-yt-dlp-aaaaaaaaaaaaaaaa.exe",
   );
 });
 

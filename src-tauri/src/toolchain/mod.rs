@@ -235,26 +235,17 @@ pub fn manifest_target(manifest: &ToolsManifest, target: &str) -> Result<Manifes
 pub fn tool_target_from(os: &str, arch: &str) -> Option<&'static str> {
     match (os, arch) {
         ("windows", "x86_64") => Some("win-x64"),
-        ("windows", "aarch64") => Some("win-arm64"),
-        ("macos", "x86_64") => Some("macos-x64"),
-        ("macos", "aarch64") => Some("macos-arm64"),
         _ => None,
     }
 }
 
 pub(crate) fn tool_names_for_target(target: &str) -> Option<ToolNames> {
     match target {
-        "win-x64" | "win-arm64" => Some(ToolNames {
+        "win-x64" => Some(ToolNames {
             yt_dlp: "yt-dlp.exe",
             ffmpeg: "ffmpeg.exe",
             ffprobe: "ffprobe.exe",
             deno: "deno.exe",
-        }),
-        "macos-x64" | "macos-arm64" => Some(ToolNames {
-            yt_dlp: "yt-dlp",
-            ffmpeg: "ffmpeg",
-            ffprobe: "ffprobe",
-            deno: "deno",
         }),
         _ => None,
     }
@@ -332,9 +323,8 @@ mod tests {
     #[test]
     fn maps_supported_platform_arch_pairs_to_tool_targets() {
         assert_eq!(tool_target_from("windows", "x86_64"), Some("win-x64"));
-        assert_eq!(tool_target_from("windows", "aarch64"), Some("win-arm64"));
-        assert_eq!(tool_target_from("macos", "x86_64"), Some("macos-x64"));
-        assert_eq!(tool_target_from("macos", "aarch64"), Some("macos-arm64"));
+        assert_eq!(tool_target_from("windows", "aarch64"), None);
+        assert_eq!(tool_target_from("macos", "x86_64"), None);
         assert_eq!(tool_target_from("linux", "x86_64"), None);
     }
 
@@ -346,11 +336,8 @@ mod tests {
         assert_eq!(windows.ffprobe, "ffprobe.exe");
         assert_eq!(windows.deno, "deno.exe");
 
-        let macos = tool_names_for_target("macos-arm64").unwrap();
-        assert_eq!(macos.yt_dlp, "yt-dlp");
-        assert_eq!(macos.ffmpeg, "ffmpeg");
-        assert_eq!(macos.ffprobe, "ffprobe");
-        assert_eq!(macos.deno, "deno");
+        assert!(tool_names_for_target("win-arm64").is_none());
+        assert!(tool_names_for_target("macos-arm64").is_none());
         assert!(tool_names_for_target("linux-x64").is_none());
     }
 

@@ -6,9 +6,8 @@
 
 - Bundled file: `src-tauri/Tools/win-x64/yt-dlp/yt-dlp.exe`
 - Source: <https://github.com/yt-dlp/yt-dlp>
-- Release tracked by toolchain revision `20260711.1`: `2026.07.04`
+- Release tracked by toolchain revision `20260712.1`: `2026.07.04`
 - Windows release asset: <https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp.exe>
-- macOS release asset: <https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp_macos>
 - Notice: yt-dlp itself is Unlicense, but the official PyInstaller executable includes GPLv3+ licensed code and should be treated as GPLv3+ for redistribution.
 
 ## FFmpeg / ffprobe
@@ -19,8 +18,6 @@
 - Windows build source: <https://github.com/yt-dlp/FFmpeg-Builds>
 - Exact Windows release, asset, and digest: `toolchain-lock.json`
 - Exact checksum URL, FFmpeg source commit, build-script commit, and corresponding-source URLs: `ffmpeg-provenance-<revision>.json` in the promoted toolchain release
-- macOS build source: <https://ffmpeg.martin-riedl.de/>
-- macOS release tracked by toolchain revision `20260711.1`: `8.1.2` for Intel and Apple Silicon
 - Notice: the selected Windows archive is a GPL build. FFmpeg-Builds scripts use their own MIT license. Keep the applicable GPL text, build-script notice, and corresponding-source access with any project mirror.
 - Procedure: [`docs/ffmpeg-redistribution.md`](docs/ffmpeg-redistribution.md)
 
@@ -28,10 +25,10 @@
 
 - Bundled file: `src-tauri/Tools/win-x64/deno/deno.exe`
 - Source: <https://github.com/denoland/deno>
-- Release tracked by toolchain revision `20260711.1`: `v2.9.2`
+- Release tracked by toolchain revision `20260712.1`: `v2.9.2`
 - Windows release asset: <https://github.com/denoland/deno/releases/download/v2.9.2/deno-x86_64-pc-windows-msvc.zip>
 - Purpose: JavaScript runtime for yt-dlp EJS challenge solver support.
-- License: MIT.
+- License: MIT; the exact upstream text is retained in [`third-party/deno/LICENSE.md`](third-party/deno/LICENSE.md).
 
 ## Updating Bundled Tools
 

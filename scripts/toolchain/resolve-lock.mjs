@@ -1,6 +1,6 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 
 import {
   resolveFfmpegProvenance,
@@ -13,7 +13,6 @@ import {
 import { fetchGitHubReleases } from "./github-releases.mjs";
 import { inspectAsset as inspectAssetDefault } from "./inspect-asset.mjs";
 import { validateToolchainPolicy } from "./policy.mjs";
-import { resolveRedirectAsset } from "./redirect-release.mjs";
 import {
   selectLatestStable,
   selectPreviousCompleteMonth,
@@ -286,77 +285,6 @@ async function resolveGitHubSource({
   };
 }
 
-async function resolveRedirectSource({
-  source,
-  approvedHosts,
-  redirectAdapter,
-  inspect,
-}) {
-  const assets = [];
-  const versions = new Set();
-  for (const assetPolicy of source.assets) {
-    const resolved = await redirectAdapter(assetPolicy.url, {
-      approvedHosts: [...approvedHosts],
-    });
-    if (typeof resolved.version !== "string" || resolved.version.trim() === "") {
-      throw new Error(`${source.id} redirect did not return a release version`);
-    }
-    versions.add(resolved.version);
-    const sourceUrl = approvedUrl(
-      resolved.url,
-      approvedHosts,
-      `${source.id} resolved asset URL`,
-    ).toString();
-    if (sourceUrl.includes("/latest/")) {
-      throw new Error(`${source.id} redirect remained mutable: ${sourceUrl}`);
-    }
-    const checksumUrl = approvedUrl(
-      resolved.checksumUrl,
-      approvedHosts,
-      `${source.id} checksum URL`,
-    ).toString();
-    const expectedSha256 = resolved.sha256
-      ? requireSha256(resolved.sha256, `${source.id} upstream asset digest`)
-      : null;
-    const inspected = await inspect(sourceUrl, assetPolicy, {
-      sha256: expectedSha256,
-      size: resolved.size,
-    });
-    const size = requireSize(inspected.size, `${source.id} downloaded asset size`);
-    const digest = requireSha256(inspected.sha256, `${source.id} downloaded asset digest`);
-    if (expectedSha256 && digest !== expectedSha256) {
-      throw new Error(`${source.id} asset changed digest during inspection`);
-    }
-
-    assets.push({
-      target: assetPolicy.target,
-      releaseId: null,
-      releaseTag: resolved.version,
-      releasePublishedAtUtc: null,
-      releaseUrl: null,
-      assetId: null,
-      assetName: basename(new URL(sourceUrl).pathname),
-      sourceUrl,
-      checksumUrl,
-      kind: assetPolicy.kind,
-      size,
-      sha256: digest,
-      members: mergeMembers(source.id, assetPolicy, inspected),
-    });
-  }
-  if (versions.size !== 1) {
-    throw new Error(`${source.id} resolved multiple release versions: ${[...versions].join(", ")}`);
-  }
-
-  return {
-    id: source.id,
-    adapter: source.adapter,
-    selection: source.selection,
-    version: [...versions][0],
-    assets: assets.sort(assetComparator),
-  };
-}
-
 async function attachRedistribution({
   policySource,
   lockSource,
@@ -456,7 +384,6 @@ export async function resolveToolchainLock({
   now = new Date(),
   tempDirectory,
   githubAdapter = fetchGitHubReleases,
-  redirectAdapter = resolveRedirectAsset,
   inspectAsset = inspectAssetDefault,
   provenanceResolver = resolveFfmpegProvenance,
   githubToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "",
@@ -491,15 +418,6 @@ export async function resolveToolchainLock({
             currentSource: currentSources.get(source.id),
             provenanceResolver,
             githubToken,
-          }),
-        );
-      } else if (source.adapter === "redirect-release") {
-        sources.push(
-          await resolveRedirectSource({
-            source,
-            approvedHosts,
-            redirectAdapter,
-            inspect,
           }),
         );
       } else {

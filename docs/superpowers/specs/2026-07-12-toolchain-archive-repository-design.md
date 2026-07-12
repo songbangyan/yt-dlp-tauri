@@ -26,7 +26,7 @@ published.
 
 | Area | Decision |
 | --- | --- |
-| Archive scope | yt-dlp, Deno, FFmpeg, and FFprobe on every supported target |
+| Archive scope | yt-dlp, Deno, FFmpeg, and FFprobe for Windows x64 |
 | Storage | GitHub Release assets in a separate public repository |
 | Immutable unit | One `toolchain-<revision>` release per toolchain revision |
 | Stable pointer | One pre-existing mutable `toolchain-stable` prerelease |
@@ -133,13 +133,13 @@ publication leaves clients on the previous complete revision.
 
 ### Asset Naming
 
-Asset names include source identity, target, upstream version, and a digest prefix.
+Asset names include source identity, upstream version, upstream asset stem, and a digest prefix.
 Examples:
 
 ```text
-yt-dlp-win-x64-2026.07.04-52fe3c26dcf71fbd.exe
-deno-macos-arm64-v2.9.2-687ae485168ba73a.zip
-ffmpeg-win-x64-autobuild-2026-06-30-99502f28cb80ab01.zip
+yt-dlp-2026.07.04-yt-dlp-52fe3c26dcf71fbd.exe
+deno-v2.9.2-deno-x86_64-pc-windows-msvc-5fe194d26ac5ef77.zip
+ffmpeg-windows-autobuild-2026-06-30-16-38-ffmpeg-N-125365-g9a01c1cb6a-win64-gpl-99502f28cb80ab01.zip
 ```
 
 Names are deterministic and must not be reused for different bytes. Full SHA-256
@@ -196,11 +196,10 @@ historical release tag. For changed assets, it predicts the current revision tag
 deterministic asset name. Publication proves that every predicted URL exists before
 promotion.
 
-Archive identity follows the unique upstream byte object, not each target reference.
-When two targets reference the same upstream URL, size, and SHA-256, they receive the
-same archive descriptor and one release asset. Target-specific upstream asset names
-remain distinguishable through `assetStem`. This is required for the shared universal
-macOS yt-dlp executable to be archived once.
+Archive identity follows the unique upstream byte object. References with the same
+upstream URL, size, and SHA-256 receive the same archive descriptor and one release
+asset. Target-specific upstream asset names remain distinguishable through
+`assetStem`.
 
 This provides incremental deduplication. Returning to an older digest may upload a
 duplicate if that asset is no longer present in the active lock; global historical
@@ -358,8 +357,6 @@ must account for:
 - Deno license and bundled third-party notices.
 - Windows FFmpeg binary checksum, FFmpeg source revision, build-repository revision,
   GPL materials, and corresponding-source availability.
-- macOS FFmpeg and FFprobe build identity, checksums, licenses, build provenance, and
-  corresponding-source availability.
 
 Missing legal or provenance evidence blocks publication for that source. The
 pipeline does not silently retain an upstream runtime URL because the approved
@@ -418,7 +415,7 @@ inspect and remove them through a separate, explicitly approved operation.
 
 ### Native Acceptance
 
-The first archive revision must pass on Windows x64, macOS Intel, and macOS ARM64:
+The first archive revision must pass on Windows x64:
 
 - Candidate acquisition and hash verification.
 - Executable version probes.
@@ -444,7 +441,7 @@ The first archive revision must pass on Windows x64, macOS Intel, and macOS ARM6
 ## Acceptance Criteria
 
 - The runtime manifest contains no upstream tool download URLs.
-- The first revision archives all 10 current unique assets, approximately 448 MiB.
+- The first revision archives all 3 current unique assets, approximately 218 MiB.
 - Later unchanged assets retain their historical immutable URLs and are not uploaded
   again.
 - PR validation, exact-main validation, and publication use byte-identical candidate

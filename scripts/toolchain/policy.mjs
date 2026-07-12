@@ -2,11 +2,10 @@ import { readFileSync } from "node:fs";
 
 import { validateArchivePolicy } from "./archive-contract.mjs";
 
-const SOURCE_ADAPTERS = new Set(["github-release", "redirect-release"]);
+const SOURCE_ADAPTERS = new Set(["github-release"]);
 const SOURCE_SELECTIONS = new Set([
   "latest-stable",
   "previous-complete-month",
-  "latest-redirect",
 ]);
 const ASSET_KINDS = new Set(["file", "zip"]);
 const REDISTRIBUTION_FIELDS = [
@@ -99,7 +98,7 @@ function validateMember(memberValue, sourceId, assetIndex, memberIndex, target, 
   return member;
 }
 
-function validateAsset(assetValue, source, assetIndex, targets, approvedHosts) {
+function validateAsset(assetValue, source, assetIndex, targets) {
   const asset = requireObject(assetValue, `source ${source.id} asset ${assetIndex}`);
   asset.target = requireNonEmptyString(asset.target, `source ${source.id} asset target`);
   if (!targets.has(asset.target)) {
@@ -110,29 +109,18 @@ function validateAsset(assetValue, source, assetIndex, targets, approvedHosts) {
     throw new Error(`source ${source.id} uses unsupported asset kind ${asset.kind}`);
   }
 
-  if (source.adapter === "github-release") {
-    const hasName = typeof asset.assetName === "string" && asset.assetName.trim() !== "";
-    const hasPattern = typeof asset.assetPattern === "string" && asset.assetPattern.trim() !== "";
-    if (hasName === hasPattern) {
-      throw new Error(`source ${source.id} asset must define exactly one assetName or assetPattern`);
-    }
-    if (hasName) asset.assetName = asset.assetName.trim();
-    if (hasPattern) {
-      asset.assetPattern = asset.assetPattern.trim();
-      try {
-        new RegExp(asset.assetPattern);
-      } catch (error) {
-        throw new Error(`source ${source.id} has invalid assetPattern: ${error}`);
-      }
-    }
-  } else {
-    asset.url = requireNonEmptyString(asset.url, `source ${source.id} asset url`);
-    const parsed = new URL(asset.url);
-    if (parsed.protocol !== "https:") {
-      throw new Error(`source ${source.id} asset URL must use HTTPS`);
-    }
-    if (!approvedHosts.has(parsed.hostname)) {
-      throw new Error(`source ${source.id} uses unapproved host ${parsed.hostname}`);
+  const hasName = typeof asset.assetName === "string" && asset.assetName.trim() !== "";
+  const hasPattern = typeof asset.assetPattern === "string" && asset.assetPattern.trim() !== "";
+  if (hasName === hasPattern) {
+    throw new Error(`source ${source.id} asset must define exactly one assetName or assetPattern`);
+  }
+  if (hasName) asset.assetName = asset.assetName.trim();
+  if (hasPattern) {
+    asset.assetPattern = asset.assetPattern.trim();
+    try {
+      new RegExp(asset.assetPattern);
+    } catch (error) {
+      throw new Error(`source ${source.id} has invalid assetPattern: ${error}`);
     }
   }
 
@@ -189,7 +177,6 @@ export function validateToolchainPolicy(value) {
     "toolchain policy approvedHosts",
   );
   const targets = new Set(policy.targets);
-  const approvedHosts = new Set(policy.approvedHosts);
 
   if (!Array.isArray(policy.sources) || policy.sources.length === 0) {
     throw new Error("toolchain policy sources must be a non-empty array");
@@ -213,14 +200,12 @@ export function validateToolchainPolicy(value) {
       throw new Error(`source ${source.id} uses unsupported selection ${source.selection}`);
     }
 
-    if (source.adapter === "github-release") {
-      source.repository = requireNonEmptyString(
-        source.repository,
-        `source ${source.id} repository`,
-      );
-      if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(source.repository)) {
-        throw new Error(`source ${source.id} has invalid GitHub repository`);
-      }
+    source.repository = requireNonEmptyString(
+      source.repository,
+      `source ${source.id} repository`,
+    );
+    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(source.repository)) {
+      throw new Error(`source ${source.id} has invalid GitHub repository`);
     }
     source.archive = validateArchivePolicy(source.archive, source.id);
     source.redistribution = validateRedistribution(source.redistribution, source.id);
@@ -228,7 +213,7 @@ export function validateToolchainPolicy(value) {
       throw new Error(`source ${source.id} assets must be a non-empty array`);
     }
     source.assets = source.assets.map((asset, assetIndex) =>
-      validateAsset(asset, source, assetIndex, targets, approvedHosts),
+      validateAsset(asset, source, assetIndex, targets),
     );
     return source;
   });

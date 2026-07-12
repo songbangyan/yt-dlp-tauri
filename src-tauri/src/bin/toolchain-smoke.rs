@@ -157,7 +157,7 @@ mod tests {
             "--manifest".to_string(),
             "manifest.json".to_string(),
             "--target".to_string(),
-            "macos-arm64".to_string(),
+            "win-x64".to_string(),
             "--root".to_string(),
             "tools".to_string(),
             "--report".to_string(),
@@ -168,7 +168,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(arguments.manifest, PathBuf::from("manifest.json"));
-        assert_eq!(arguments.target, "macos-arm64");
+        assert_eq!(arguments.target, "win-x64");
         assert_eq!(arguments.root, PathBuf::from("tools"));
         assert_eq!(arguments.report, PathBuf::from("report.json"));
         assert_eq!(arguments.asset_root, Some(PathBuf::from("candidate")));

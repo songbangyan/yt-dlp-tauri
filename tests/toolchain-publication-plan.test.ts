@@ -24,13 +24,12 @@ const historicalByteSha256 = "1".repeat(64);
 const proposedByteSha256 = "2".repeat(64);
 
 function targetReport(target: string) {
-  const architecture = target === "macos-arm64" ? "arm64" : "x64";
   const tools = ["deno", "ffmpeg", "ffprobe", "yt-dlp"];
   return createTargetReport({
     target,
     success: true,
-    runnerImage: target === "win-x64" ? "windows-latest" : "macos-15",
-    architecture,
+    runnerImage: "windows-latest",
+    architecture: "x64",
     checks: {
       supplyChain: true,
       executables: true,
@@ -83,7 +82,7 @@ function validationReport({
     });
   }
   return mergeTargetReports(
-    [targetReport("win-x64"), targetReport("macos-x64"), targetReport("macos-arm64")],
+    [targetReport("win-x64")],
     context,
   );
 }

@@ -5,10 +5,9 @@ Tool updates are published independently from application releases
 ## 20260712.1 - 2026-07-12
 
 - `deno`: `v2.9.2` archive metadata added
-- `ffmpeg-macos-arm64`: `8.1.2` archive metadata added
-- `ffmpeg-macos-x64`: `8.1.2` archive metadata added
 - `ffmpeg-windows`: `autobuild-2026-06-30-16-38` archive metadata added
 - `yt-dlp`: `2026.07.04` archive metadata added
+- Supported target narrowed to `win-x64`; macOS source units were retired before publication
 
 ## 20260711.2 - 2026-07-11
 

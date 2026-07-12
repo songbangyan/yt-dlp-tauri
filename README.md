@@ -1,7 +1,7 @@
 <h1 align="center">yt-dlp-tauri</h1>
 
 <p align="center">
-  <strong>A minimal Windows/macOS desktop downloader powered by yt-dlp and Tauri 2.</strong>
+  <strong>A minimal Windows desktop downloader powered by yt-dlp and Tauri 2.</strong>
 </p>
 
 <p align="center">
@@ -17,7 +17,7 @@
   <img alt="Rust" src="https://img.shields.io/badge/Rust-backend-B7410E?logo=rust" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-typed-3178C6?logo=typescript" />
   <img alt="Vite" src="https://img.shields.io/badge/Vite-build-646CFF?logo=vite" />
-  <img alt="Windows and macOS" src="https://img.shields.io/badge/Windows%20%2B%20macOS-desktop-0078D4?logo=windows" />
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-desktop-0078D4?logo=windows" />
 </p>
 
 <p align="center">
@@ -51,16 +51,16 @@ The project is desktop-first and local-first. It is not a hosted downloader serv
 | Backend | Rust |
 | Frontend | Vanilla TypeScript, Vite |
 | UI | Fixed-size product-style desktop interface |
-| Toolchain | App-managed Windows/macOS `yt-dlp`, `ffmpeg`, `ffprobe`, `deno` |
-| Installer | Windows NSIS, macOS DMG |
+| Toolchain | App-managed Windows x64 `yt-dlp`, `ffmpeg`, `ffprobe`, `deno` |
+| Installer | Windows x64 NSIS |
 
 ## Quick Start
 
-Use Windows or macOS for real app builds. WSL can run many checks, but release installers should be built on their target OS or by the GitHub Actions release workflow.
+Use Windows for real app builds. WSL can run many checks, while release installers should be built on Windows or by the GitHub Actions release workflow.
 
 ### 1. Install prerequisites
 
-- Windows 10/11 with WebView2 Runtime, or macOS
+- Windows 10/11 x64 with WebView2 Runtime
 - Node.js 24+
 - Rust stable with the platform toolchain
 - PowerShell 5+ or PowerShell 7+ on Windows
@@ -91,11 +91,10 @@ npm run tauri dev
 npm run tauri build
 ```
 
-The configured bundle targets are `nsis` and `dmg`. Build output is written under platform-specific bundle directories such as:
+The configured bundle target is `nsis`. Build output is written under:
 
 ```text
 src-tauri\target\release\bundle\nsis\
-src-tauri/target/release/bundle/dmg/
 ```
 
 ## Configuration
@@ -113,8 +112,7 @@ src-tauri/target/release/bundle/dmg/
 
 Current release scope:
 
-- Populated tool targets: `win-x64`, `macos-x64`, `macos-arm64`.
-- Planned manifest target: `win-arm64`, once every tool URL and hash is pinned.
+- Supported tool target: `win-x64`.
 - Tool binaries are not committed to the repository.
 
 ## Toolchain Maintenance
@@ -217,7 +215,7 @@ Before publishing a release:
 
 1. Run the verification commands above.
 2. Push a version tag such as `v0.1.3`.
-3. Wait for the `Release` workflow to upload Windows NSIS, macOS DMG, and `tools-manifest.json` artifacts to the draft GitHub Release.
+3. Wait for the `Release` workflow to upload the Windows x64 NSIS installer and `tools-manifest.json` to the draft GitHub Release.
 4. Confirm `src-tauri/tools-manifest.json` uses fixed release URLs, not `latest`.
 5. Confirm generated folders and restored tools are not staged.
 6. Include the GPL license and third-party notices with the release.

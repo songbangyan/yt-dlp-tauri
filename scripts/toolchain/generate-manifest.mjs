@@ -4,7 +4,7 @@ import {
   validateArchiveDescriptor,
 } from "./archive-contract.mjs";
 
-const TARGET_ORDER = ["win-x64", "macos-x64", "macos-arm64"];
+const TARGET_ORDER = ["win-x64"];
 const TOOL_ORDER = ["yt-dlp", "ffmpeg", "ffprobe", "deno"];
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const REVISION_PATTERN = /^[0-9]{8}\.[1-9][0-9]*$/;

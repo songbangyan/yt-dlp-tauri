@@ -600,7 +600,7 @@ fn current_tool_target() -> Result<String, String> {
                 .map(|target| target.to_string())
                 .ok_or_else(|| {
                     format!(
-                        "Unsupported tool target for {}-{}. Supported targets: win-x64, win-arm64, macos-x64, macos-arm64.",
+                        "Unsupported tool target for {}-{}. Supported target: win-x64.",
                         env::consts::OS,
                         env::consts::ARCH
                     )
@@ -1634,10 +1634,6 @@ fn open_path(path: &Path) -> Result<(), String> {
         let mut command = Command::new("explorer");
         command.arg(path);
         command
-    } else if cfg!(target_os = "macos") {
-        let mut command = Command::new("open");
-        command.arg(path);
-        command
     } else {
         let mut command = Command::new("xdg-open");
         command.arg(path);
@@ -1704,7 +1700,7 @@ mod tests {
             .collect();
         let expected_tools = BTreeSet::from(["deno", "ffmpeg", "ffprobe", "yt-dlp"]);
 
-        for target_name in ["win-x64", "macos-x64", "macos-arm64"] {
+        for target_name in ["win-x64"] {
             let target = targets
                 .get(target_name)
                 .unwrap_or_else(|| panic!("missing manifest target {target_name}"));

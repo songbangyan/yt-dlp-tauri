@@ -13,7 +13,6 @@ import {
 } from "../scripts/toolchain/validation-report.mjs";
 
 function targetReport(target: string, windowsFfmpegSha256?: string) {
-  const architecture = target === "macos-arm64" ? "arm64" : "x64";
   const tools = ["deno", "ffmpeg", "ffprobe", "yt-dlp"].map((name) => ({
     name,
     version: "1.0.0",
@@ -21,8 +20,8 @@ function targetReport(target: string, windowsFfmpegSha256?: string) {
   return createTargetReport({
     target,
     success: true,
-    runnerImage: target === "win-x64" ? "windows-latest" : "macos-15",
-    architecture,
+    runnerImage: "windows-latest",
+    architecture: "x64",
     checks: {
       supplyChain: true,
       executables: true,
@@ -68,7 +67,7 @@ function publicationFixture(overrides = {}) {
   const manifestSha256 = "b".repeat(64);
   const lockSha256 = "c".repeat(64);
   const report = mergeTargetReports(
-    [targetReport("win-x64"), targetReport("macos-x64"), targetReport("macos-arm64")],
+    [targetReport("win-x64")],
     {
       revision,
       commitSha,
@@ -185,11 +184,7 @@ function rollbackFixture(overrides = {}) {
   const manifestName = `tools-manifest-${rollbackRevision}.json`;
   const validationName = `toolchain-validation-${rollbackRevision}.json`;
   const provenanceName = `ffmpeg-provenance-${rollbackRevision}.json`;
-  const reports = [
-    targetReport("win-x64", mirrorSha256),
-    targetReport("macos-x64"),
-    targetReport("macos-arm64"),
-  ];
+  const reports = [targetReport("win-x64", mirrorSha256)];
   const historicalReport = mergeTargetReports(reports, {
     revision: rollbackRevision,
     commitSha: "7".repeat(40),

@@ -3,82 +3,9 @@
   "revision": "20260710.3",
   "generatedAtUtc": "2026-07-10T04:00:00.000Z",
   "targets": [
-    "macos-arm64",
     "win-x64"
   ],
   "sources": [
-    {
-      "id": "ffmpeg-macos-arm64",
-      "adapter": "redirect-release",
-      "selection": "latest-redirect",
-      "version": "8.1.2",
-      "assets": [
-        {
-          "target": "macos-arm64",
-          "releaseId": null,
-          "releaseTag": "8.1.2",
-          "releasePublishedAtUtc": null,
-          "releaseUrl": null,
-          "assetId": null,
-          "assetName": "ffmpeg.zip",
-          "sourceUrl": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffmpeg.zip",
-          "checksumUrl": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffmpeg.zip.sha256",
-          "kind": "zip",
-          "size": 10,
-          "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-          "archive": {
-            "repository": "Chlience/yt-dlp-tauri-toolchain",
-            "releaseTag": "toolchain-20260710.3",
-            "assetName": "ffmpeg-macos-arm64-8.1.2-ffmpeg-eeeeeeeeeeeeeeee.zip",
-            "size": 10,
-            "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-          },
-          "members": [
-            {
-              "tool": "ffmpeg",
-              "path": "Tools/macos-arm64/ffmpeg/bin/ffmpeg",
-              "archivePathSuffix": "ffmpeg",
-              "archivePath": "ffmpeg",
-              "size": 4,
-              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
-              "licenseNotes": "macOS FFmpeg test license"
-            }
-          ]
-        },
-        {
-          "target": "macos-arm64",
-          "releaseId": null,
-          "releaseTag": "8.1.2",
-          "releasePublishedAtUtc": null,
-          "releaseUrl": null,
-          "assetId": null,
-          "assetName": "ffprobe.zip",
-          "sourceUrl": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffprobe.zip",
-          "checksumUrl": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffprobe.zip.sha256",
-          "kind": "zip",
-          "size": 11,
-          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-          "archive": {
-            "repository": "Chlience/yt-dlp-tauri-toolchain",
-            "releaseTag": "toolchain-20260710.3",
-            "assetName": "ffmpeg-macos-arm64-8.1.2-ffprobe-ffffffffffffffff.zip",
-            "size": 11,
-            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-          },
-          "members": [
-            {
-              "tool": "ffprobe",
-              "path": "Tools/macos-arm64/ffmpeg/bin/ffprobe",
-              "archivePathSuffix": "ffprobe",
-              "archivePath": "ffprobe",
-              "size": 5,
-              "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
-              "licenseNotes": "macOS FFprobe test license"
-            }
-          ]
-        }
-      ]
-    },
     {
       "id": "ffmpeg-windows",
       "adapter": "github-release",

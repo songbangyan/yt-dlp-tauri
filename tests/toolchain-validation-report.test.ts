@@ -13,7 +13,6 @@ const DIGESTS = {
 };
 
 function targetReport(target: string, overrides = {}) {
-  const architecture = target === "macos-arm64" ? "arm64" : "x64";
   const tools = ["yt-dlp", "ffprobe", "deno", "ffmpeg"].map((name, index) => ({
     name,
     version: `1.${index}`,
@@ -21,8 +20,8 @@ function targetReport(target: string, overrides = {}) {
   return createTargetReport({
     target,
     success: true,
-    runnerImage: target === "win-x64" ? "windows-latest" : "macos-15",
-    architecture,
+    runnerImage: "windows-latest",
+    architecture: "x64",
     checks: {
       supplyChain: true,
       executables: true,
@@ -49,9 +48,7 @@ function targetReport(target: string, overrides = {}) {
 }
 
 function targetReports() {
-  return ["win-x64", "macos-x64", "macos-arm64"].map((target) =>
-    targetReport(target),
-  );
+  return [targetReport("win-x64")];
 }
 
 function reportContext() {
@@ -81,7 +78,7 @@ test("publication report requires all native targets and exact hashes", () => {
 
   assert.deepEqual(
     report.targets.map((target) => target.target),
-    ["macos-arm64", "macos-x64", "win-x64"],
+    ["win-x64"],
   );
   assert.doesNotThrow(() =>
     validatePublicationReport(report, {
@@ -136,10 +133,7 @@ test("publication rejects a failed target check", () => {
       projectTests: true,
     },
   });
-  const report = mergeTargetReports(
-    [targetReport("macos-arm64"), targetReport("macos-x64"), failed],
-    reportContext(),
-  );
+  const report = mergeTargetReports([failed], reportContext());
 
   assert.throws(() => validatePublicationReport(report, reportContext()), /win-x64.*failed/u);
 });
@@ -165,12 +159,9 @@ test("a failing target Canary remains non-blocking for publication", () => {
   const windows = targetReport("win-x64", {
     canary: { status: "failing", blocking: false },
   });
-  const report = mergeTargetReports(
-    [targetReport("macos-arm64"), targetReport("macos-x64"), windows],
-    reportContext(),
-  );
+  const report = mergeTargetReports([windows], reportContext());
 
-  assert.equal(report.targets[2].canary.status, "failing");
+  assert.equal(report.targets[0].canary.status, "failing");
   assert.doesNotThrow(() => validatePublicationReport(report, reportContext()));
   assert.throws(
     () =>
@@ -193,8 +184,8 @@ test("publication rejects a mismatched manifest digest", () => {
   );
 });
 
-test("redirect assets use explicit null release and asset IDs", () => {
-  const base = targetReport("macos-arm64");
+test("nullable asset identities must explicitly declare release and asset IDs", () => {
+  const base = targetReport("win-x64");
   const redirectedAssets = base.assets.map((asset, index) =>
     index === 0 ? { ...asset, releaseId: null, assetId: null } : asset,
   );

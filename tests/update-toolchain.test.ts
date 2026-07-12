@@ -44,8 +44,6 @@ test("fixture update writes lock, manifest, and toolchain changelog together", a
   assert.equal(result.revision, "20260711.1");
   assert.deepEqual(result.updatedSources, [
     "deno",
-    "ffmpeg-macos-arm64",
-    "ffmpeg-macos-x64",
     "ffmpeg-windows",
     "yt-dlp",
   ]);

@@ -1,7 +1,7 @@
 <h1 align="center">yt-dlp-tauri</h1>
 
 <p align="center">
-  <strong>一个由 yt-dlp 和 Tauri 2 驱动的轻量 Windows/macOS 桌面下载器。</strong>
+  <strong>一个由 yt-dlp 和 Tauri 2 驱动的轻量 Windows 桌面下载器。</strong>
 </p>
 
 <p align="center">
@@ -17,7 +17,7 @@
   <img alt="Rust" src="https://img.shields.io/badge/Rust-backend-B7410E?logo=rust" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-typed-3178C6?logo=typescript" />
   <img alt="Vite" src="https://img.shields.io/badge/Vite-build-646CFF?logo=vite" />
-  <img alt="Windows 和 macOS" src="https://img.shields.io/badge/Windows%20%2B%20macOS-desktop-0078D4?logo=windows" />
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-desktop-0078D4?logo=windows" />
 </p>
 
 <p align="center">
@@ -51,16 +51,16 @@
 | 后端 | Rust |
 | 前端 | Vanilla TypeScript, Vite |
 | UI | 固定尺寸的产品型桌面界面 |
-| 工具链 | 应用管理的 Windows/macOS `yt-dlp`、`ffmpeg`、`ffprobe`、`deno` |
-| 安装包 | Windows NSIS、macOS DMG |
+| 工具链 | 应用管理的 Windows x64 `yt-dlp`、`ffmpeg`、`ffprobe`、`deno` |
+| 安装包 | Windows x64 NSIS |
 
 ## 快速开始
 
-真实应用构建请在 Windows 或 macOS 上执行。WSL 可以跑很多检查，但发布安装包应在目标系统上构建，或交给 GitHub Actions release workflow。
+真实应用构建请在 Windows 上执行。WSL 可以跑很多检查，发布安装包应在 Windows 上构建，或交给 GitHub Actions release workflow。
 
 ### 1. 安装系统依赖
 
-- Windows 10/11 + WebView2 Runtime，或 macOS
+- Windows 10/11 x64 + WebView2 Runtime
 - Node.js 24+
 - Rust stable，安装对应平台 toolchain
 - Windows 上需要 PowerShell 5+ 或 PowerShell 7+
@@ -91,11 +91,10 @@ npm run tauri dev
 npm run tauri build
 ```
 
-当前配置的 bundle target 是 `nsis` 和 `dmg`。构建产物位于对应平台目录，例如：
+当前配置的 bundle target 是 `nsis`。构建产物位于：
 
 ```text
 src-tauri\target\release\bundle\nsis\
-src-tauri/target/release/bundle/dmg/
 ```
 
 ## 配置说明
@@ -113,8 +112,7 @@ src-tauri/target/release/bundle/dmg/
 
 当前发布范围：
 
-- 已填充工具 target：`win-x64`、`macos-x64`、`macos-arm64`。
-- 计划中的 manifest target：`win-arm64`，等所有工具 URL 和 hash 都固定后再补齐。
+- 支持的工具 target：`win-x64`。
 - 仓库不提交工具二进制。
 
 ## 工具链维护
@@ -217,7 +215,7 @@ npm run tauri build
 
 1. 运行上面的验证命令。
 2. 推送版本 tag，例如 `v0.1.3`。
-3. 等待 `Release` workflow 把 Windows NSIS 和 macOS DMG 产物上传到 draft GitHub Release。
+3. 等待 `Release` workflow 把 Windows x64 NSIS 安装包和 `tools-manifest.json` 上传到 draft GitHub Release。
 4. 确认 `src-tauri/tools-manifest.json` 使用固定 release URL，不使用 `latest`。
 5. 确认生成目录和还原出来的工具没有被 staged。
 6. 随 release 保留 GPL 许可证和第三方声明。

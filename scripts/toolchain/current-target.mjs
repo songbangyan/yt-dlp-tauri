@@ -2,8 +2,6 @@ import { pathToFileURL } from "node:url";
 
 const TARGETS = new Map([
   ["win32/x64", "win-x64"],
-  ["darwin/x64", "macos-x64"],
-  ["darwin/arm64", "macos-arm64"],
 ]);
 
 export function nativeToolchainTarget(platform = process.platform, arch = process.arch) {

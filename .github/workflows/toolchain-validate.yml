@@ -174,12 +174,6 @@ jobs:
           - target: win-x64
             runner: windows-latest
             architecture: x64
-          - target: macos-x64
-            runner: macos-15-intel
-            architecture: x64
-          - target: macos-arm64
-            runner: macos-15
-            architecture: arm64
 
     steps:
       - name: Checkout
@@ -368,13 +362,11 @@ jobs:
             ["ffmpeg", new Set(["ffmpeg", "ffprobe"])],
           ]);
           for (const [unit, names] of units) {
-            const targets = baselineManifest.targets.map((baselineTarget) => {
-              const candidateTarget = candidateManifest.targets.find(
-                (target) => target.target === baselineTarget.target,
+            const targets = candidateManifest.targets.map((candidateTarget) => {
+              const baselineTarget = baselineManifest.targets.find(
+                (target) => target.target === candidateTarget.target,
               );
-              if (!candidateTarget) {
-                throw new Error(`Candidate is missing ${baselineTarget.target}`);
-              }
+              if (!baselineTarget) return candidateTarget;
               const tools = baselineTarget.tools.map((baselineTool) => {
                 if (!names.has(baselineTool.name)) return baselineTool;
                 const candidateTool = candidateTarget.tools.find(
@@ -382,12 +374,12 @@ jobs:
                 );
                 if (!candidateTool) {
                   throw new Error(
-                    `Candidate is missing ${baselineTarget.target}/${baselineTool.name}`,
+                    `Candidate is missing ${candidateTarget.target}/${baselineTool.name}`,
                   );
                 }
                 return candidateTool;
               });
-              return { ...baselineTarget, tools };
+              return { ...candidateTarget, tools };
             });
             writeJson(`.toolchain/manifests/diagnostic-${unit}.json`, {
               ...candidateManifest,
