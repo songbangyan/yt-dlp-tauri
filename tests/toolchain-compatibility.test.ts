@@ -41,6 +41,8 @@ test("media generation uses synthetic video and audio inputs", () => {
   });
 
   assert.equal(command.command, "/tools/ffmpeg");
+  assert.equal(command.cwd, "/tmp/media");
+  assert.equal(command.args.at(-1), "media.mpd");
   assert.ok(command.args.includes("testsrc2=size=320x180:rate=24"));
   assert.ok(command.args.includes("sine=frequency=1000:sample_rate=48000"));
   assert.ok(command.args.includes("dash"));

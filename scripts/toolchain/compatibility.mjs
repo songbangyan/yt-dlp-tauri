@@ -21,6 +21,7 @@ const MAX_CAPTURE_BYTES = 4 * 1024 * 1024;
 export function ffmpegDashCommand({ ffmpeg, outputDirectory }) {
   return {
     command: ffmpeg,
+    cwd: outputDirectory,
     args: [
       "-hide_banner",
       "-loglevel",
@@ -64,7 +65,7 @@ export function ffmpegDashCommand({ ffmpeg, outputDirectory }) {
       "id=0,streams=v id=1,streams=a",
       "-f",
       "dash",
-      join(outputDirectory, "media.mpd"),
+      "media.mpd",
     ],
   };
 }
@@ -266,11 +267,15 @@ export async function startMediaServer(mediaRoot) {
 }
 
 export function runCommand(
-  { command, args },
+  { command, args, cwd },
   { timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS } = {},
 ) {
   return new Promise((resolveCommand, rejectCommand) => {
-    const child = spawn(command, args, { shell: false, windowsHide: true });
+    const child = spawn(command, args, {
+      cwd,
+      shell: false,
+      windowsHide: true,
+    });
     const stdout = [];
     const stderr = [];
     let capturedBytes = 0;
