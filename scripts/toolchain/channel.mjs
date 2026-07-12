@@ -1,7 +1,16 @@
 const MARKER_OPEN = "<!-- toolchain-channel";
 const MARKER_CLOSE = "-->";
-const SCHEMA_VERSION = 1;
-const RECORD_FIELDS = ["schemaVersion", "revision", "manifest", "sha256"];
+const ARCHIVE_REPOSITORY = "Chlience/yt-dlp-tauri-toolchain";
+const LEGACY_RECORD_FIELDS = ["schemaVersion", "revision", "manifest", "sha256"];
+const ARCHIVE_RECORD_FIELDS = [
+  "schemaVersion",
+  "repository",
+  "revision",
+  "releaseTag",
+  "manifest",
+  "sha256",
+];
+const ALL_RECORD_FIELDS = [...new Set([...LEGACY_RECORD_FIELDS, ...ARCHIVE_RECORD_FIELDS])];
 const REVISION_PATTERN = /^[0-9]{8}\.[1-9][0-9]*$/u;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 
@@ -22,7 +31,7 @@ export function parseChannelRecord(releaseBody) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("toolchain channel record must contain a JSON object");
   }
-  for (const field of RECORD_FIELDS) {
+  for (const field of ALL_RECORD_FIELDS) {
     const occurrences = json.match(new RegExp(`"${field}"\\s*:`, "gu"))?.length ?? 0;
     if (occurrences > 1) throw new Error(`toolchain channel record has duplicate fields: ${field}`);
   }
@@ -52,6 +61,15 @@ export function selectManifestAsset(release, record) {
   if (!release || !Array.isArray(release.assets)) {
     throw new Error("toolchain release assets must be an array");
   }
+  if (normalized.schemaVersion === 2) {
+    if (
+      release.tag_name !== normalized.releaseTag ||
+      release.draft !== false ||
+      release.immutable !== true
+    ) {
+      throw new Error("toolchain revision release must be published and immutable");
+    }
+  }
   const matches = release.assets.filter((asset) => asset?.name === normalized.manifest);
   if (matches.length !== 1) {
     throw new Error(
@@ -70,6 +88,12 @@ export function selectManifestAsset(release, record) {
   }
   if (downloadUrl.hostname !== "github.com" || downloadUrl.search || downloadUrl.hash) {
     throw new Error(`${normalized.manifest} must have an immutable GitHub download URL`);
+  }
+  if (normalized.schemaVersion === 2) {
+    const expectedPath = `/Chlience/yt-dlp-tauri-toolchain/releases/download/${normalized.releaseTag}/${encodeURIComponent(normalized.manifest)}`;
+    if (downloadUrl.pathname !== expectedPath) {
+      throw new Error(`${normalized.manifest} URL must match the archive revision release`);
+    }
   }
   if (
     !(
@@ -95,16 +119,17 @@ function normalizeChannelRecord(record) {
   if (!record || typeof record !== "object" || Array.isArray(record)) {
     throw new Error("toolchain channel record must be an object");
   }
+  const fields = record.schemaVersion === 1 ? LEGACY_RECORD_FIELDS : ARCHIVE_RECORD_FIELDS;
   const keys = Object.keys(record);
-  const unknown = keys.filter((key) => !RECORD_FIELDS.includes(key));
+  const unknown = keys.filter((key) => !fields.includes(key));
   if (unknown.length > 0) {
     throw new Error(`toolchain channel record has unknown fields: ${unknown.join(", ")}`);
   }
-  const missing = RECORD_FIELDS.filter((key) => !Object.hasOwn(record, key));
+  const missing = fields.filter((key) => !Object.hasOwn(record, key));
   if (missing.length > 0) {
     throw new Error(`toolchain channel record is missing fields: ${missing.join(", ")}`);
   }
-  if (record.schemaVersion !== SCHEMA_VERSION) {
+  if (record.schemaVersion !== 1 && record.schemaVersion !== 2) {
     throw new Error(`Unsupported toolchain channel schema: ${record.schemaVersion}`);
   }
   if (!REVISION_PATTERN.test(record.revision ?? "")) {
@@ -114,12 +139,30 @@ function normalizeChannelRecord(record) {
   if (record.manifest !== expectedManifest) {
     throw new Error(`Channel manifest must match revision ${record.revision}`);
   }
+  if (record.schemaVersion === 2) {
+    if (record.repository !== ARCHIVE_REPOSITORY) {
+      throw new Error(`Channel archive repository must be ${ARCHIVE_REPOSITORY}`);
+    }
+    if (record.releaseTag !== `toolchain-${record.revision}`) {
+      throw new Error(`Channel release tag must match revision ${record.revision}`);
+    }
+  }
   if (!SHA256_PATTERN.test(record.sha256 ?? "")) {
     throw new Error("Channel digest must be a 64-character lowercase SHA-256");
   }
+  if (record.schemaVersion === 1) {
+    return {
+      schemaVersion: 1,
+      revision: record.revision,
+      manifest: record.manifest,
+      sha256: record.sha256,
+    };
+  }
   return {
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: 2,
+    repository: ARCHIVE_REPOSITORY,
     revision: record.revision,
+    releaseTag: record.releaseTag,
     manifest: record.manifest,
     sha256: record.sha256,
   };

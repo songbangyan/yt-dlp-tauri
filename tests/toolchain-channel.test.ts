@@ -9,8 +9,10 @@ import {
 
 function channelFixture(overrides = {}) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    repository: "Chlience/yt-dlp-tauri-toolchain",
     revision: "20260711.1",
+    releaseTag: "toolchain-20260711.1",
     manifest: "tools-manifest-20260711.1.json",
     sha256: "a".repeat(64),
     ...overrides,
@@ -38,6 +40,7 @@ test("channel renderer replaces one record without changing human notes", () => 
   const original = renderChannelRecord("Before\n", channelFixture());
   const nextRecord = channelFixture({
     revision: "20260712.1",
+    releaseTag: "toolchain-20260712.1",
     manifest: "tools-manifest-20260712.1.json",
     sha256: "b".repeat(64),
   });
@@ -60,6 +63,18 @@ test("channel parser rejects unknown fields and mismatched manifest names", () =
     manifest: "tools-manifest-20260710.1.json",
   })}\n-->\n`;
   assert.throws(() => parseChannelRecord(mismatched), /must match revision/u);
+
+  const wrongRepository = `<!-- toolchain-channel\n${JSON.stringify({
+    ...channelFixture(),
+    repository: "someone/else",
+  })}\n-->\n`;
+  assert.throws(() => parseChannelRecord(wrongRepository), /archive repository/u);
+
+  const wrongRelease = `<!-- toolchain-channel\n${JSON.stringify({
+    ...channelFixture(),
+    releaseTag: "toolchain-20260710.1",
+  })}\n-->\n`;
+  assert.throws(() => parseChannelRecord(wrongRelease), /release tag must match/u);
 });
 
 test("channel parser rejects unterminated markers and uppercase digests", () => {
@@ -80,21 +95,34 @@ test("manifest asset selection requires one exact HTTPS asset", () => {
     id: 123,
     name: record.manifest,
     browser_download_url:
-      "https://github.com/Chlience/yt-dlp-tauri/releases/download/toolchain-stable/tools-manifest-20260711.1.json",
+      "https://github.com/Chlience/yt-dlp-tauri-toolchain/releases/download/toolchain-20260711.1/tools-manifest-20260711.1.json",
     size: 1024,
   };
+  const release = {
+    tag_name: record.releaseTag,
+    draft: false,
+    immutable: true,
+    assets: [asset],
+  };
 
-  assert.equal(selectManifestAsset({ assets: [asset] }, record), asset);
+  assert.equal(selectManifestAsset(release, record), asset);
   assert.throws(
-    () => selectManifestAsset({ assets: [asset, { ...asset, id: 456 }] }, record),
+    () => selectManifestAsset({ ...release, assets: [asset, { ...asset, id: 456 }] }, record),
     /exactly one release asset/u,
   );
   assert.throws(
     () =>
       selectManifestAsset(
-        { assets: [{ ...asset, browser_download_url: "http://example.test/manifest" }] },
+        {
+          ...release,
+          assets: [{ ...asset, browser_download_url: "http://example.test/manifest" }],
+        },
         record,
       ),
     /HTTPS download URL/u,
+  );
+  assert.throws(
+    () => selectManifestAsset({ ...release, immutable: false }, record),
+    /immutable/u,
   );
 });

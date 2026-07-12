@@ -7,6 +7,12 @@ import {
   renderChannelRecord,
 } from "./toolchain/channel.mjs";
 import { validatePublicationReport } from "./toolchain/validation-report.mjs";
+import {
+  createArchivePublicationPlan,
+  createArchiveRollbackPlan,
+} from "./toolchain/publication-plan.mjs";
+
+export { createArchivePublicationPlan, createArchiveRollbackPlan };
 
 const REVISION_PATTERN = /^[0-9]{8}\.[1-9][0-9]*$/u;
 const COMMIT_PATTERN = /^[a-f0-9]{40}$/u;
@@ -548,10 +554,21 @@ if (isDirectExecution()) {
   try {
     const cli = parseCliArguments(process.argv.slice(2));
     const input = JSON.parse(await readFile(cli.input, "utf8"));
-    const plan =
-      input.mode === "rollback" ? createRollbackPlan(input) : createPublicationPlan(input);
+    const archiveMode = input.archiveRepository === "Chlience/yt-dlp-tauri-toolchain";
+    const plan = archiveMode
+      ? input.mode === "rollback"
+        ? createArchiveRollbackPlan(input)
+        : createArchivePublicationPlan(input)
+      : input.mode === "rollback"
+        ? createRollbackPlan(input)
+        : createPublicationPlan(input);
     await writeFile(cli.output, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
-    process.stdout.write(`${JSON.stringify({ revision: plan.revision, steps: plan.steps.length })}\n`);
+    process.stdout.write(
+      `${JSON.stringify({
+        revision: plan.revision,
+        operations: plan.operations?.length ?? plan.steps.length,
+      })}\n`,
+    );
   } catch (error) {
     process.stderr.write(`${error.message}\n`);
     process.exitCode = 1;
