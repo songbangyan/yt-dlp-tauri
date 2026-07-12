@@ -282,9 +282,13 @@ repository. Required archive permissions are:
 
 - Contents: write.
 - Metadata: read.
+- Administration: read, solely to verify that immutable releases are enabled.
 
-The main repository `GITHUB_TOKEN` remains read-only for validation. Publication
-uses the App token only after exact-main validation succeeds.
+The main repository `GITHUB_TOKEN` remains read-only for validation. After
+exact-main validation succeeds, the publisher performs local prerequisite checks,
+creates the repository-scoped App token, and uses it for read-only remote gates.
+No archive mutation begins until the repository, mutable channel, and immutable
+release setting all pass those gates.
 
 The publication plan lists every asset as one of:
 

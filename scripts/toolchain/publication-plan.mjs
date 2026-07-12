@@ -424,9 +424,21 @@ function validatePublicationMetadata(metadata, context) {
   if (
     compliance.value?.schemaVersion !== 1 ||
     compliance.value.revision !== context.revision ||
-    compliance.value.passed !== true
+    compliance.value.passed !== true ||
+    !Array.isArray(compliance.value.sources) ||
+    compliance.value.sources.some(
+      (source) =>
+        typeof source?.id !== "string" ||
+        source.passed !== true ||
+        !Array.isArray(source.evidence) ||
+        source.evidence.some((evidence) => evidence?.satisfied !== true),
+    )
   ) {
     throw new Error("Publication compliance metadata must record a passing revision");
+  }
+  const complianceSourceIds = compliance.value.sources.map((source) => source.id).sort();
+  if (JSON.stringify(complianceSourceIds) !== JSON.stringify([...context.sourceIds].sort())) {
+    throw new Error("Publication compliance metadata source IDs do not match the lock");
   }
   const provenance = metadataByCategory(metadata, "provenance");
   if (
@@ -550,6 +562,7 @@ export function createArchivePublicationPlan(inputValue) {
     commitSha,
     lockSha256,
     candidate: candidateIdentity(handoff),
+    sourceIds: lock.sources.map((source) => source.id),
   });
   const stableRelease = requireStableRelease(input.stableRelease);
   const promoted = currentChannel(stableRelease);

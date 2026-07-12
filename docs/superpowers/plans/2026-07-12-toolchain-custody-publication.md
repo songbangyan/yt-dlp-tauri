@@ -15,7 +15,7 @@
 - Candidate files use `assets/<64-lowercase-sha256>` and are never stored in Git.
 - A descriptor assigned to the proposed revision must have one exact candidate file.
 - A reused descriptor must resolve to an immutable historical release asset and is not uploaded again.
-- Archive mutation uses a GitHub App installation token scoped to `Chlience/yt-dlp-tauri-toolchain`.
+- Archive verification and mutation use a GitHub App installation token scoped to `Chlience/yt-dlp-tauri-toolchain` with Contents write, Metadata read, and Administration read.
 - Revision release remains draft until every uploaded asset is downloaded and verified.
 - Stable channel promotion occurs only after immutable publication verification.
 - v0.1.11 compatibility replacement on the latest normal application release is last.
@@ -421,9 +421,9 @@ Run: `node --test --experimental-strip-types tests/toolchain-workflow.test.ts`
 
 Expected: FAIL because publication currently writes tool assets to the main repository.
 
-- [ ] **Step 3: Add a prerequisite gate before token creation**
+- [ ] **Step 3: Add prerequisite gates before archive mutation**
 
-Check that the archive repository exists and is public, `toolchain-stable` exists and is mutable, repository immutability endpoint returns enabled, required secrets are configured, and policy compliance evidence is complete. Exit before creating a draft when any gate fails.
+Before token creation, check exact-main state, required secrets, and policy compliance evidence. Create the repository-scoped token, then check that the archive repository exists and is public, `toolchain-stable` exists and is mutable, and the authenticated repository immutability endpoint returns enabled. Exit before creating a draft when any gate fails. The immutability endpoint requires Administration read permission.
 
 - [ ] **Step 4: Create, upload, and verify the draft**
 
@@ -457,7 +457,7 @@ Before any real workflow dispatch, all of these must be confirmed manually:
 - Public repository `Chlience/yt-dlp-tauri-toolchain` exists.
 - Mutable `toolchain-stable` prerelease was created before immutability was enabled.
 - Release immutability is enabled for future releases.
-- GitHub App is installed on both repositories with archive Contents write and Metadata read.
+- GitHub App is installed on both repositories with archive Contents write, Metadata read, and Administration read.
 - Main repository secrets `TOOLCHAIN_BOT_APP_ID` and `TOOLCHAIN_BOT_PRIVATE_KEY` exist.
 - Redistribution evidence for every source unit passed maintainer review.
 

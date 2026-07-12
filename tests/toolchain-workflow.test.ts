@@ -80,21 +80,70 @@ test("publisher validates exact main before promoting immutable assets", () => {
   assert.match(workflow, /node scripts\/resolve-toolchain-artifact\.mjs/u);
   assert.match(workflow, /git\/ref\/heads\/main/u);
   assert.match(workflow, /toolchain-validation-report/u);
-  assert.match(workflow, /toolchain-mirror-candidates/u);
-  assert.match(workflow, /node scripts\/publish-toolchain\.mjs --input/u);
+  assert.match(workflow, /node scripts\/publish-toolchain\.mjs[\s\\]+--input/u);
+  assert.match(workflow, /Chlience\/yt-dlp-tauri-toolchain/u);
   assert.match(workflow, /toolchain-stable/u);
   assert.match(workflow, /--prerelease/u);
   assert.match(workflow, /releases\/latest/u);
   assert.match(
     workflow,
-    /tools-manifest\.json#tools-manifest\.json"\s+--clobber/u,
+    /#tools-manifest\.json"[\s\S]*?--clobber/u,
   );
+  assert.doesNotMatch(workflow, /toolchain-mirror-candidates/u);
 
-  const upload = workflow.indexOf("Upload immutable assets");
-  const verify = workflow.indexOf("Verify uploaded FFmpeg asset");
+  const upload = workflow.indexOf("Upload planned draft assets");
+  const verify = workflow.indexOf("Verify every draft asset");
+  const immutable = workflow.indexOf("Verify immutable revision");
   const promote = workflow.indexOf("Promote stable channel");
-  const compatibility = workflow.indexOf("Update application compatibility manifest");
-  assert.ok(upload >= 0 && verify > upload && promote > verify && compatibility > promote);
+  const compatibility = workflow.indexOf("Update v0.1.11 compatibility");
+  assert.ok(
+    upload >= 0 &&
+      verify > upload &&
+      immutable > verify &&
+      promote > immutable &&
+      compatibility > promote,
+  );
+});
+
+test("publisher scopes App authentication and gates every archive mutation", () => {
+  const workflow = readFileSync(".github/workflows/toolchain-publish.yml", "utf8");
+
+  assert.match(workflow, new RegExp(`actions/create-github-app-token@${APP_TOKEN_SHA}`));
+  assert.match(workflow, /owner:\s*Chlience/u);
+  assert.match(workflow, /repositories:\s*yt-dlp-tauri-toolchain/u);
+  assert.match(workflow, /TOOLCHAIN_BOT_APP_ID/u);
+  assert.match(workflow, /TOOLCHAIN_BOT_PRIVATE_KEY/u);
+  assert.match(workflow, /repos\/\$\{ARCHIVE_REPOSITORY\}\/immutable-releases/u);
+  assert.match(workflow, /X-GitHub-Api-Version:\s*2026-03-10/u);
+  assert.match(workflow, /\.enabled == true/u);
+  assert.match(workflow, /\.visibility == "public"/u);
+  assert.match(workflow, /\.immutable == false/u);
+
+  const localGate = workflow.indexOf("Check local publication prerequisites");
+  const token = workflow.indexOf("Create archive publisher token");
+  const remoteGate = workflow.indexOf("Check archive publication prerequisites");
+  const draft = workflow.indexOf("Create immutable revision draft");
+  assert.ok(localGate >= 0 && token > localGate && remoteGate > token && draft > remoteGate);
+});
+
+test("publisher verifies draft bytes and immutable release attestation before promotion", () => {
+  const workflow = readFileSync(".github/workflows/toolchain-publish.yml", "utf8");
+
+  assert.match(workflow, /--draft/u);
+  assert.match(workflow, /--prerelease/u);
+  assert.match(workflow, /--latest=false/u);
+  assert.match(workflow, /verifyUploadedAsset/u);
+  assert.match(workflow, /draft:\s*false/u);
+  assert.match(workflow, /\.immutable !== true/u);
+  assert.match(
+    workflow,
+    /gh release verify "\$RELEASE_TAG" --repo "\$ARCHIVE_REPOSITORY"/u,
+  );
+  const draftUploads = workflow.slice(
+    workflow.indexOf("Upload planned draft assets"),
+    workflow.indexOf("Verify every draft asset"),
+  );
+  assert.doesNotMatch(draftUploads, /--clobber/u);
 });
 
 test("main handoff revalidates one exact pull request candidate artifact", () => {
@@ -134,10 +183,11 @@ test("rollback revalidates historical revisions unless a protected environment a
   assert.match(publisher, /with:\s*\n\s*rollback_revision: \$\{\{ inputs\.rollback_revision/u);
   assert.match(publisher, /environment: toolchain-rollback/u);
   assert.match(publisher, /protection_rules[\s\S]*?required_reviewers/u);
-  assert.match(publisher, /createRollbackPlan/u);
+  assert.match(publisher, /archiveRepository/u);
   assert.match(publisher, /Promote rollback channel/u);
+  assert.match(publisher, /Promoted rollback channel differs from the validated plan/u);
   assert.match(publisher, /Record rollback decision/u);
-  assert.match(publisher, /rollback-application-release-after-upload\.json/u);
+  assert.match(publisher, /application-release-after-upload\.json/u);
   assert.match(publisher, /steps\.publication_plan\.outputs\.dry_run != 'true'/u);
 
   assert.match(validation, /workflow_call:\s*\n\s*inputs:\s*\n\s*rollback_revision:/u);

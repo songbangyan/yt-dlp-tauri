@@ -217,7 +217,16 @@ function publicationFixture(overrides = {}) {
       report: validation,
     }),
     metadata("compliance", `toolchain-compliance-${revision}.json`, "3".repeat(64), {
-      value: { schemaVersion: 1, revision, passed: true },
+      value: {
+        schemaVersion: 1,
+        revision,
+        passed: true,
+        sources: ["deno", "yt-dlp"].map((id) => ({
+          id,
+          passed: true,
+          evidence: [{ id: "binary-release", satisfied: true }],
+        })),
+      },
     }),
     metadata("provenance", `toolchain-provenance-${revision}.json`, "4".repeat(64), {
       value: { schemaVersion: 1, revision },
