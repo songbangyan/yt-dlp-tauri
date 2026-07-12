@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import test from "node:test";
 
 import { createDraftUploadPlan } from "../scripts/prepare-toolchain-draft-uploads.mjs";
@@ -41,15 +42,18 @@ test("draft uploads stage every missing asset under its public name", () => {
       name: "yt-dlp.exe",
       size: 3,
       sha256: binarySha256,
-      sourcePath: `.toolchain/candidate/assets/${binarySha256}`,
-      uploadPath: ".toolchain/publication/draft-uploads/yt-dlp.exe",
+      sourcePath: join(".toolchain/candidate", `assets/${binarySha256}`),
+      uploadPath: join(".toolchain/publication/draft-uploads", "yt-dlp.exe"),
     },
     {
       name: "tools-manifest.json",
       size: 4,
       sha256: metadataSha256,
       sourcePath: ".toolchain/publication/tools-manifest.json",
-      uploadPath: ".toolchain/publication/draft-uploads/tools-manifest.json",
+      uploadPath: join(
+        ".toolchain/publication/draft-uploads",
+        "tools-manifest.json",
+      ),
     },
   ]);
   assert.deepEqual(result.reused, []);
